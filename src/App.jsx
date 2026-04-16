@@ -1,0 +1,109 @@
+// src/App.jsx
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { useStore } from './lib/store';
+import { supabase, getProfile, onAuthChange } from './lib/supabase';
+
+import AuthPage     from './pages/AuthPage';
+import OnboardPage  from './pages/OnboardPage';
+import Dashboard    from './pages/Dashboard';
+
+const GF = `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');`;
+
+function RequireAuth({ children }) {
+  const { session, profile } = useStore();
+  if (!session) return <Navigate to="/auth" replace />;
+  if (!profile) return <Navigate to="/onboard" replace />;
+  return children;
+}
+
+function RequireNoAuth({ children }) {
+  const { session, profile } = useStore();
+  if (session && profile) return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
+export default function App() {
+  const { setSession, setUser, setProfile, clearAuth } = useStore();
+
+  useEffect(() => {
+    // Inject Google Fonts
+    const style = document.createElement('style');
+    style.textContent = GF;
+    document.head.appendChild(style);
+
+    // Listen to auth changes
+    const sub = onAuthChange(async (event, session) => {
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+        const profile = await getProfile(session.user.id);
+        setProfile(profile);
+      } else {
+        clearAuth();
+      }
+    });
+
+    // Check existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+        const profile = await getProfile(session.user.id);
+        setProfile(profile);
+      }
+    });
+
+    return () => sub.unsubscribe();
+  }, []);
+
+  return (
+    <>
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #140c00; color: #f0d8a8; font-family: 'Outfit', sans-serif; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #140c00; }
+        ::-webkit-scrollbar-thumb { background: #3d2200; border-radius: 2px; }
+        input::placeholder, textarea::placeholder { color: #5a3810; }
+        select option { background: #271500; color: #f0d8a8; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn .3s ease; }
+      `}</style>
+
+      <BrowserRouter>
+        <Routes>
+          <Route path="/auth" element={
+            <RequireNoAuth><AuthPage /></RequireNoAuth>
+          } />
+          <Route path="/onboard" element={
+            <OnboardPage />
+          } />
+          <Route path="/dashboard" element={
+            <RequireAuth><Dashboard /></RequireAuth>
+          } />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </BrowserRouter>
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: '#271500',
+            color: '#f0d8a8',
+            border: '1px solid #3d2200',
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 13,
+          },
+          success: { iconTheme: { primary: '#3ed870', secondary: '#271500' } },
+          error:   { iconTheme: { primary: '#ff5040', secondary: '#271500' } },
+        }}
+      />
+    </>
+  );
+}

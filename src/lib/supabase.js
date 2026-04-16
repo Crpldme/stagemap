@@ -1,0 +1,224 @@
+// src/lib/supabase.js
+import { createClient } from '@supabase/supabase-js';
+
+export const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+    realtime: { params: { eventsPerSecond: 10 } },
+  }
+);
+
+// ── Auth helpers ─────────────────────────────────────────────
+
+export const signUp = async (email, password, name) => {
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { data: { name } },
+  });
+  if (error) throw error;
+  return data;
+};
+
+export const signIn = async (email, password) => {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
+};
+
+export const signOut = async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+};
+
+export const getSession = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+};
+
+export const onAuthChange = (cb) => {
+  const { data } = supabase.auth.onAuthStateChange(cb);
+  return data.subscription;
+};
+
+// ── Profile helpers ──────────────────────────────────────────
+
+export const getProfile = async (userId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data;
+};
+
+export const upsertProfile = async (profile) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(profile, { onConflict: 'id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const getAllProfiles = async (filters = {}) => {
+  let query = supabase.from('profiles').select('*');
+  if (filters.type) query = query.eq('type', filters.type);
+  if (filters.region) query = query.eq('region', filters.region);
+  if (filters.available) query = query.eq('available', true);
+  if (filters.search) query = query.or(
+    `name.ilike.%${filters.search}%,genre.ilike.%${filters.search}%,region.ilike.%${filters.search}%,bio.ilike.%${filters.search}%`
+  );
+  query = query.order('created_at', { ascending: false });
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+
+// ── Message helpers ──────────────────────────────────────────
+
+export const getMessages = async (userId) => {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*, from:from_id(id,name,avatar), to:to_id(id,name,avatar)')
+    .or(`from_id.eq.${userId},to_id.eq.${userId}`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+export const sendMessage = async (fromId, toId, subject, body, hasInvite = false, inviteId = null) => {
+  const { data, error } = await supabase
+    .from('messages')
+    .insert({ from_id: fromId, to_id: toId, subject, body, has_invite: hasInvite, invite_id: inviteId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const markMessageRead = async (messageId) => {
+  await supabase.from('messages').update({ read: true }).eq('id', messageId);
+};
+
+// ── Chat helpers ─────────────────────────────────────────────
+
+export const getRoomId = (uid1, uid2) => [uid1, uid2].sort().join('_');
+
+export const getChatMessages = async (roomId) => {
+  const { data, error } = await supabase
+    .from('chats')
+    .select('*, sender:sender_id(id,name,avatar)')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const sendChatMessage = async (roomId, senderId, body) => {
+  const { data, error } = await supabase
+    .from('chats')
+    .insert({ room_id: roomId, sender_id: senderId, body })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const subscribeToChatRoom = (roomId, callback) => {
+  return supabase
+    .channel('chat_' + roomId)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'chats',
+      filter: 'room_id=eq.' + roomId,
+    }, callback)
+    .subscribe();
+};
+
+// ── Invitation helpers ───────────────────────────────────────
+
+export const createInvitation = async (inv) => {
+  const { data, error } = await supabase
+    .from('invitations')
+    .insert(inv)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const getMyInvitations = async (userId) => {
+  const { data, error } = await supabase
+    .from('invitations')
+    .select('*, organizer:organizer_id(id,name,avatar), invitee:invitee_id(id,name,avatar)')
+    .or(`organizer_id.eq.${userId},invitee_id.eq.${userId}`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+export const respondToInvitation = async (invId, status, signature = null) => {
+  const update = { status };
+  if (signature) { update.invitee_signature = signature; update.legal_accepted_by_invitee = true; }
+  const { data, error } = await supabase
+    .from('invitations')
+    .update(update)
+    .eq('id', invId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// ── Campaign helpers ─────────────────────────────────────────
+
+export const createCampaign = async (campaign) => {
+  const { data, error } = await supabase
+    .from('campaigns')
+    .insert(campaign)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const getMyCampaigns = async (userId) => {
+  const { data, error } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+// ── Calendar helpers ─────────────────────────────────────────
+
+export const getMyCalendar = async (userId) => {
+  const { data, error } = await supabase
+    .from('calendar_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date_start', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const addCalendarEntry = async (entry) => {
+  const { data, error } = await supabase
+    .from('calendar_entries')
+    .insert(entry)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
