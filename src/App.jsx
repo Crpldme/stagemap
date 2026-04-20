@@ -3,11 +3,11 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useStore } from './lib/store';
-import { supabase, getProfile, onAuthChange } from './lib/supabase';
+import { supabase, getUserProfiles, onAuthChange } from './lib/supabase';
 
-import AuthPage     from './pages/AuthPage';
-import OnboardPage  from './pages/OnboardPage';
-import Dashboard    from './pages/Dashboard';
+import AuthPage    from './pages/AuthPage';
+import OnboardPage from './pages/OnboardPage';
+import Dashboard   from './pages/Dashboard';
 
 const GF = `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');`;
 
@@ -25,7 +25,18 @@ function RequireNoAuth({ children }) {
 }
 
 export default function App() {
-  const { setSession, setUser, setProfile, clearAuth } = useStore();
+  const { setSession, setUser, setProfile, setUserProfiles, clearAuth } = useStore();
+
+  const loadUserProfiles = async (user) => {
+    const profiles = await getUserProfiles(user.id);
+    setUserProfiles(profiles);
+    // Active le premier profil par défaut
+    if (profiles.length > 0) {
+      setProfile(profiles[0]);
+    } else {
+      setProfile(null);
+    }
+  };
 
   useEffect(() => {
     // Inject Google Fonts
@@ -38,8 +49,7 @@ export default function App() {
       if (session) {
         setSession(session);
         setUser(session.user);
-        const profile = await getProfile(session.user.id);
-        setProfile(profile);
+        await loadUserProfiles(session.user);
       } else {
         clearAuth();
       }
@@ -50,8 +60,7 @@ export default function App() {
       if (session) {
         setSession(session);
         setUser(session.user);
-        const profile = await getProfile(session.user.id);
-        setProfile(profile);
+        await loadUserProfiles(session.user);
       }
     });
 

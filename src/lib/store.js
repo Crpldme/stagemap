@@ -8,11 +8,31 @@ export const useStore = create(
       // ── Auth ──────────────────────────────────
       session: null,
       user: null,
-      profile: null,
+      profile: null,         // profil actif
+      userProfiles: [],      // tous les profils du compte
       setSession: (session) => set({ session }),
       setUser: (user) => set({ user }),
       setProfile: (profile) => set({ profile }),
-      clearAuth: () => set({ session: null, user: null, profile: null }),
+      setUserProfiles: (userProfiles) => set({ userProfiles }),
+      switchProfile: (profileId) => set(state => ({
+        profile: state.userProfiles.find(p => p.id === profileId) || state.profile,
+      })),
+      addUserProfile: (profile) => set(state => ({
+        userProfiles: [...state.userProfiles, profile],
+        profile: profile, // switche vers le nouveau profil
+      })),
+      updateUserProfile: (profile) => set(state => ({
+        userProfiles: state.userProfiles.map(p => p.id === profile.id ? profile : p),
+        profile: state.profile?.id === profile.id ? profile : state.profile,
+      })),
+      removeUserProfile: (profileId) => set(state => {
+        const remaining = state.userProfiles.filter(p => p.id !== profileId);
+        return {
+          userProfiles: remaining,
+          profile: state.profile?.id === profileId ? (remaining[0] || null) : state.profile,
+        };
+      }),
+      clearAuth: () => set({ session: null, user: null, profile: null, userProfiles: [] }),
 
       // ── UI state ──────────────────────────────
       tab: 'map',
@@ -55,7 +75,7 @@ export const useStore = create(
       campaigns: [],
       setCampaigns: (campaigns) => set({ campaigns }),
 
-      // ── AI tour plan (in-progress) ────────────
+      // ── AI tour plan ──────────────────────────
       tourPlan: null,
       setTourPlan: (plan) => set({ tourPlan: plan }),
     }),
@@ -65,6 +85,7 @@ export const useStore = create(
         session: state.session,
         user: state.user,
         profile: state.profile,
+        userProfiles: state.userProfiles,
         tab: state.tab,
       }),
     }

@@ -27,7 +27,7 @@ export default function AuthPage() {
       setLoading(true);
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(form.email, {
-          redirectTo: window.location.origin + '/dashboard',
+         redirectTo: 'https://stagemap.vercel.app/auth',
         });
         if (error) throw error;
         toast.success('Email de récupération envoyé ! Vérifiez votre boîte.');

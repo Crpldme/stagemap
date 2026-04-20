@@ -48,24 +48,69 @@ export const onAuthChange = (cb) => {
 
 // ── Profile helpers ──────────────────────────────────────────
 
+// Récupère tous les profils d'un utilisateur
 export const getProfile = async (userId) => {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', userId)
-    .single();
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
   if (error && error.code !== 'PGRST116') throw error;
-  return data;
+  // Retourne le premier profil pour compatibilité
+  return data && data.length > 0 ? data[0] : null;
+};
+
+// Récupère tous les profils d'un utilisateur
+export const getUserProfiles = async (userId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
 };
 
 export const upsertProfile = async (profile) => {
+  // Si le profil a un id existant, on le met à jour
+  // Sinon on en crée un nouveau
+  if (profile.id && !profile._isNew) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ ...profile, id: undefined })
+      .eq('id', profile.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } else {
+    const { _isNew, ...profileData } = profile;
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert({ ...profileData, id: undefined })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+};
+
+export const createProfile = async (profile) => {
   const { data, error } = await supabase
     .from('profiles')
-    .upsert(profile, { onConflict: 'id' })
+    .insert(profile)
     .select()
     .single();
   if (error) throw error;
   return data;
+};
+
+export const deleteProfile = async (profileId) => {
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', profileId);
+  if (error) throw error;
 };
 
 export const getAllProfiles = async (filters = {}) => {

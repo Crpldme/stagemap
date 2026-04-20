@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useStore } from '../lib/store';
-import { supabase, upsertProfile } from '../lib/supabase';
+import { createProfile, getUserProfiles } from '../lib/supabase';
 
 const C = {
   bg:"#140c00", card:"#271500", border:"#3d2200", tag:"#2a1600",
@@ -54,7 +54,7 @@ function Sel({ value, onChange, options, style: s = {} }) {
 
 export default function OnboardPage() {
   const navigate = useNavigate();
-  const { user, setProfile } = useStore();
+  const { user, setProfile, setUserProfiles, addUserProfile, userProfiles } = useStore();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [p, setP] = useState({
@@ -64,13 +64,16 @@ export default function OnboardPage() {
   });
   const set = (k, v) => setP(prev => ({ ...prev, [k]: v }));
 
+  // Vérifie si c'est un nouveau profil ou le premier
+  const isAddingProfile = userProfiles && userProfiles.length > 0;
+
   const finish = async () => {
     if (!user) { toast.error('Session expirée, reconnectez-vous'); navigate('/auth'); return; }
     setLoading(true);
     try {
       const coords = REGION_COORDS[p.region] || { lat: 45.5, lng: -73.57 };
-      const profile = {
-        id: user.id,
+      const newProfile = {
+        user_id: user.id,
         email: user.email,
         name: p.name || user.user_metadata?.name || 'Utilisateur',
         type: p.type,
@@ -85,9 +88,19 @@ export default function OnboardPage() {
         lat: coords.lat + (Math.random() - 0.5) * 0.2,
         lng: coords.lng + (Math.random() - 0.5) * 0.2,
       };
-      const saved = await upsertProfile(profile);
-      setProfile(saved);
-      toast.success('✦ Profil créé ! Bienvenue sur StageMap.');
+
+      const saved = await createProfile(newProfile);
+
+      // Met à jour le store
+      if (isAddingProfile) {
+        addUserProfile(saved);
+        toast.success('✦ Nouveau profil créé !');
+      } else {
+        setUserProfiles([saved]);
+        setProfile(saved);
+        toast.success('✦ Profil créé ! Bienvenue sur StageMap.');
+      }
+
       navigate('/dashboard');
     } catch (err) {
       toast.error('Erreur: ' + err.message);
@@ -97,7 +110,7 @@ export default function OnboardPage() {
 
   const steps = [
     {
-      title: 'Quel est votre rôle ?',
+      title: isAddingProfile ? 'Quel type de profil ?' : 'Quel est votre rôle ?',
       valid: true,
       content: (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
@@ -183,8 +196,16 @@ export default function OnboardPage() {
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ width: '100%', maxWidth: 540 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: C.cream, fontWeight: 700 }}>Créer votre profil</div>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: C.cream, fontWeight: 700 }}>
+            {isAddingProfile ? 'Ajouter un profil' : 'Créer votre profil'}
+          </div>
           <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Étape {step + 1} sur {steps.length}</div>
+          {isAddingProfile && (
+            <button onClick={() => navigate('/dashboard')}
+              style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 12, fontFamily: "'Outfit',sans-serif", marginTop: 8 }}>
+              ← Retour au dashboard
+            </button>
+          )}
         </div>
 
         {/* Progress bar */}
@@ -210,7 +231,7 @@ export default function OnboardPage() {
             ) : (
               <button onClick={finish} disabled={loading}
                 style={{ flex: 1, background: loading ? C.tag : 'linear-gradient(135deg,' + C.orange + ',' + C.orangeLt + ')', border: 'none', borderRadius: 10, padding: '13px 0', color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 700, fontFamily: "'Outfit',sans-serif", fontSize: 15, boxShadow: '0 4px 20px ' + C.orange + '44' }}>
-                {loading ? '⏳ Publication...' : '✦ Publier mon profil'}
+                {loading ? '⏳ Publication...' : '✦ Publier ce profil'}
               </button>
             )}
           </div>

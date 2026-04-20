@@ -12,6 +12,8 @@ import {
 } from '../lib/supabase';
 import { runAI, buildTourPlannerSystem } from '../lib/ai';
 import { startSubscription, checkSubscription, PRICES } from '../lib/stripe';
+import Map, { Marker, Popup, NavigationControl } from 'react-map-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 /* ── Design Tokens ── */
 const C = {
@@ -25,7 +27,6 @@ const C = {
 
 const typeColors = { artist: C.orange, venue: C.brown, fan: C.brownLt };
 const typeLabels  = { artist: 'Artiste', venue: 'Lieu', fan: 'Fan' };
-const uid = () => Math.random().toString(36).slice(2, 9);
 const nowT = () => new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' });
 
 const REGION_COORDS = {
@@ -59,6 +60,8 @@ const AD_PACKAGES = [
   { id:'pro', name:'Tour Pro', icon:'🌍', price:249, color:C.purple, reach:'20 000–80 000', features:['Tout du pack Boost','Google Ads CPC ~$5.26','TikTok Ads CPC $0.20','Spotify lien bio promo','Rapport par date'], platforms:['StageMap','Google','Meta','TikTok'], roi:'ROI estimé 5–8×' },
 ];
 
+const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
+
 /* ── Mini components ── */
 function Pill({ children, color = C.orange, sm }) {
   return <span style={{ background: color+'22', color, border:'1px solid '+color+'44', borderRadius:20, padding:sm?'1px 7px':'3px 10px', fontSize:sm?10:11, fontWeight:600, letterSpacing:.8, textTransform:'uppercase', fontFamily:"'Outfit',sans-serif", whiteSpace:'nowrap' }}>{children}</span>;
@@ -91,8 +94,153 @@ function Spinner() {
   return <div style={{width:20,height:20,border:'2px solid '+C.border,borderTop:'2px solid '+C.orange,borderRadius:'50%',animation:'spin 1s linear infinite'}}/>;
 }
 
-/* ── Map View ── */
+/* ── Profile Switcher ── */
+function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position:'relative', flexShrink:0 }}>
+      <div onClick={() => setOpen(o => !o)}
+        style={{ display:'flex', alignItems:'center', gap:6, background:C.tag, border:'1px solid '+(open?C.orange:C.border), borderRadius:20, padding:'4px 10px', cursor:'pointer', transition:'all .15s' }}>
+        <span style={{ fontSize:16 }}>{profile.avatar || '🎵'}</span>
+        <span style={{ fontSize:11, color:C.text, maxWidth:80, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{profile.name}</span>
+        <span style={{ fontSize:9, color:C.dim }}>▾</span>
+      </div>
+
+      {open && (
+        <div style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:C.bg2, border:'1px solid '+C.border, borderRadius:12, minWidth:210, zIndex:600, boxShadow:'0 16px 40px #00000090', overflow:'hidden' }}>
+          <div style={{ padding:'8px 12px', borderBottom:'1px solid '+C.border, fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase' }}>Mes profils</div>
+
+          {userProfiles.map(p => (
+            <div key={p.id} onClick={() => { onSwitch(p.id); setOpen(false); }}
+              style={{ display:'flex', alignItems:'center', gap:9, padding:'9px 12px', cursor:'pointer', background: profile.id===p.id ? C.orange+'11' : 'none', borderLeft: profile.id===p.id ? '2px solid '+C.orange : '2px solid transparent', transition:'all .15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = C.card}
+              onMouseLeave={e => e.currentTarget.style.background = profile.id===p.id ? C.orange+'11' : 'none'}>
+              <span style={{ fontSize:18 }}>{p.avatar || '🎵'}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight: profile.id===p.id ? 600 : 400, color:C.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.name}</div>
+                <div style={{ fontSize:10, color:C.muted }}>{typeLabels[p.type]} · {p.region}</div>
+              </div>
+              {profile.id===p.id && <span style={{ fontSize:10, color:C.orange }}>✓</span>}
+            </div>
+          ))}
+
+          <div style={{ borderTop:'1px solid '+C.border }}>
+            <div onClick={() => { onAdd(); setOpen(false); }}
+              style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', cursor:'pointer', color:C.orangeLt, fontSize:12 }}
+              onMouseEnter={e => e.currentTarget.style.background = C.card}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              ＋ Ajouter un profil
+            </div>
+            <div onClick={() => { onLogout(); setOpen(false); }}
+              style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', cursor:'pointer', color:C.red, fontSize:12 }}
+              onMouseEnter={e => e.currentTarget.style.background = C.card}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              ↩ Déconnexion
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Map View (Mapbox) ── */
 function MapView({ artists, myProfile, onOpen }) {
+  const [popup, setPopup] = useState(null);
+  const [hov, setHov] = useState(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState(false);
+
+  const withCoords = artists.filter(a => a.lat && a.lng);
+  const centerLng = withCoords.length ? withCoords.reduce((s,a)=>s+a.lng,0)/withCoords.length : -45;
+  const centerLat = withCoords.length ? withCoords.reduce((s,a)=>s+a.lat,0)/withCoords.length : 47;
+  const [viewport, setViewport] = useState({ longitude: centerLng, latitude: centerLat, zoom: 3.2 });
+
+  const tokenOk = MAPBOX_TOKEN && MAPBOX_TOKEN !== 'pk.eyJ1IjoieW91...' && MAPBOX_TOKEN.startsWith('pk.');
+  if (!tokenOk || mapError) return <MapViewFallback artists={artists} myProfile={myProfile} onOpen={onOpen} />;
+
+  return (
+    <div>
+      <div style={{ position:'relative', height:480, borderRadius:16, border:'1px solid '+C.border, overflow:'hidden', boxShadow:'0 8px 40px #00000060' }}>
+        {!mapLoaded && (
+          <div style={{ position:'absolute', inset:0, zIndex:10, background:'linear-gradient(135deg,#0a160a,#0a1220,#160a0a)', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}>
+            <Spinner /><span style={{ color:C.muted, fontSize:13 }}>Chargement de la carte…</span>
+          </div>
+        )}
+        <Map {...viewport} onMove={e=>setViewport(e.viewState)} mapboxAccessToken={MAPBOX_TOKEN} mapStyle="mapbox://styles/mapbox/dark-v11" style={{ width:'100%', height:'100%' }} onLoad={()=>setMapLoaded(true)} onError={()=>setMapError(true)} attributionControl={false}>
+          <NavigationControl position="top-right" style={{ marginTop:8, marginRight:8 }} />
+          {withCoords.map(a => {
+            const isMe = myProfile && a.id === myProfile.id;
+            const isH = hov === a.id;
+            const size = isH ? 46 : isMe ? 40 : 34;
+            return (
+              <Marker key={a.id} longitude={a.lng} latitude={a.lat} anchor="center" onClick={e=>{ e.originalEvent.stopPropagation(); setPopup(a); }}>
+                <div onMouseEnter={()=>setHov(a.id)} onMouseLeave={()=>setHov(null)} style={{ position:'relative', cursor:'pointer', transition:'all .2s', zIndex:isH?20:isMe?15:10 }}>
+                  <div style={{ position:'absolute', bottom:-4, left:'50%', transform:'translateX(-50%)', width:6, height:6, borderRadius:'50%', background:typeColors[a.type], boxShadow:'0 0 6px '+typeColors[a.type] }} />
+                  <div style={{ width:size, height:size, borderRadius:'50%', background:C.card, border:isMe?'3px solid '+C.glow:'2px solid '+typeColors[a.type], display:'flex', alignItems:'center', justifyContent:'center', fontSize:isH?22:isMe?18:15, boxShadow:isH?'0 0 20px '+typeColors[a.type]+', 0 4px 12px #00000080':isMe?'0 0 14px '+C.glow+', 0 4px 12px #00000080':'0 2px 8px #00000060', transition:'all .2s' }}>
+                    {a.avatar || '🎵'}
+                  </div>
+                  {isMe && !isH && <div style={{ position:'absolute', top:-4, right:-4, width:10, height:10, borderRadius:'50%', background:C.glow, border:'2px solid '+C.bg, animation:'pulse 2s infinite' }} />}
+                  {isH && !popup && (
+                    <div style={{ position:'absolute', bottom:'calc(100% + 8px)', left:'50%', transform:'translateX(-50%)', background:C.card, border:'1px solid '+(isMe?C.glow:C.border), borderRadius:8, padding:'5px 9px', whiteSpace:'nowrap', color:C.text, fontSize:12, pointerEvents:'none', zIndex:30, boxShadow:'0 4px 16px #00000080' }}>
+                      {isMe && <span style={{ color:C.glow, fontSize:10 }}>✦ Vous · </span>}
+                      <strong>{a.name}</strong>
+                      <div style={{ color:C.muted, fontSize:10 }}>{a.region}</div>
+                    </div>
+                  )}
+                </div>
+              </Marker>
+            );
+          })}
+          {popup && (
+            <Popup longitude={popup.lng} latitude={popup.lat} anchor="bottom" offset={28} onClose={()=>setPopup(null)} closeButton={false} style={{ zIndex:50 }}>
+              <div style={{ background:C.bg2, border:'1px solid '+(myProfile&&popup.id===myProfile.id?C.glow:C.border), borderRadius:10, padding:'10px 13px', minWidth:180, fontFamily:"'Outfit',sans-serif", color:C.text }}>
+                {myProfile && popup.id === myProfile.id && <div style={{ color:C.glow, fontSize:10, marginBottom:4 }}>✦ Votre profil actif</div>}
+                <div style={{ display:'flex', gap:9, alignItems:'center', marginBottom:8 }}>
+                  <span style={{ fontSize:26 }}>{popup.avatar || '🎵'}</span>
+                  <div>
+                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, fontWeight:700 }}>{popup.name}</div>
+                    <div style={{ color:C.muted, fontSize:11 }}>{popup.genre}</div>
+                    <div style={{ color:C.dim, fontSize:10 }}>📍 {popup.region}, {popup.country}</div>
+                  </div>
+                </div>
+                {popup.available && <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:C.green, marginBottom:7 }}><span style={{ width:5, height:5, borderRadius:'50%', background:C.green, display:'inline-block' }} />Disponible pour booking</div>}
+                <div style={{ display:'flex', gap:6 }}>
+                  <button onClick={()=>{ onOpen(popup); setPopup(null); }} style={{ flex:1, background:'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>Voir profil</button>
+                  <button onClick={()=>setPopup(null)} style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:6, color:C.muted, fontSize:11, padding:'5px 8px', cursor:'pointer' }}>✕</button>
+                </div>
+              </div>
+            </Popup>
+          )}
+        </Map>
+        <div style={{ position:'absolute', bottom:12, left:12, background:C.card+'ee', border:'1px solid '+C.border, borderRadius:20, padding:'4px 11px', fontSize:11, color:C.muted, backdropFilter:'blur(8px)', pointerEvents:'none' }}>
+          {withCoords.length} profils sur la carte
+        </div>
+      </div>
+      <div style={{ display:'flex', gap:14, marginTop:8, justifyContent:'center' }}>
+        {Object.entries(typeColors).map(([t,c]) => (
+          <span key={t} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
+            <span style={{ width:8, height:8, borderRadius:'50%', background:c, display:'inline-block' }} />{typeLabels[t]}
+          </span>
+        ))}
+        <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
+          <span style={{ width:8, height:8, borderRadius:'50%', background:C.glow, display:'inline-block' }} />Vous
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Map View Fallback ── */
+function MapViewFallback({ artists, myProfile, onOpen }) {
   const [hov, setHov] = useState(null);
   return (
     <div>
@@ -133,7 +281,7 @@ function ProfileModal({ a, myId, onClose, onChat, onInvite }) {
   return (
     <div style={{position:'fixed',inset:0,background:'#00000085',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:C.bg2,border:'1px solid '+(isMe?C.glow:C.border),borderRadius:16,padding:26,maxWidth:420,width:'100%',color:C.text,fontFamily:"'Outfit',sans-serif",boxShadow:'0 40px 100px #00000080'}}>
-        {isMe&&<div style={{background:C.glow+'22',border:'1px solid '+C.glow+'44',borderRadius:8,padding:'5px 12px',fontSize:11,color:C.glow,marginBottom:14}}>✦ Votre profil</div>}
+        {isMe&&<div style={{background:C.glow+'22',border:'1px solid '+C.glow+'44',borderRadius:8,padding:'5px 12px',fontSize:11,color:C.glow,marginBottom:14}}>✦ Votre profil actif</div>}
         <div style={{display:'flex',gap:14,marginBottom:14}}>
           <div style={{fontSize:38,width:58,height:58,background:C.tag,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid '+typeColors[a.type]}}>{a.avatar||'🎵'}</div>
           <div>
@@ -171,9 +319,7 @@ function ChatPanel({ myProfile, partner, onClose }) {
 
   useEffect(() => {
     getChatMessages(roomId).then(data => { setMsgs(data); setLoading(false); });
-    const sub = subscribeToChatRoom(roomId, payload => {
-      setMsgs(m => [...m, payload.new]);
-    });
+    const sub = subscribeToChatRoom(roomId, payload => { setMsgs(m => [...m, payload.new]); });
     return () => supabase.removeChannel(sub);
   }, [roomId]);
 
@@ -250,24 +396,19 @@ function AIPanel({ profiles, myProfile, onLaunchTour }) {
           <p style={{color:C.muted,fontSize:12,marginTop:2}}>Décrivez en langage naturel — l'IA cherche parmi les {profiles.length} vrais profils</p>
         </div>
       </div>
-
       <div style={{display:'flex',gap:7,marginBottom:10}}>
         {[{k:'search',l:'🔍 Recherche'},{k:'tour',l:'🗺️ Tournée IA'}].map(m=>(
           <button key={m.k} onClick={()=>setMode(m.k)} style={{background:mode===m.k?C.orange+'22':C.tag,color:mode===m.k?C.orange:C.muted,border:'1px solid '+(mode===m.k?C.orange:C.border),borderRadius:20,padding:'5px 14px',cursor:'pointer',fontSize:12,fontFamily:"'Outfit',sans-serif",fontWeight:mode===m.k?600:400}}>{m.l}</button>
         ))}
       </div>
-
       <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:9}}>
         {SUGGESTIONS[mode].map(s=><button key={s} onClick={()=>setQuery(s)} style={{background:C.tag,border:'1px solid '+C.border,color:C.muted,borderRadius:20,padding:'3px 9px',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{s}</button>)}
       </div>
-
       <div style={{display:'flex',gap:9,marginBottom:14}}>
         <Inp value={query} onChange={setQuery} placeholder={mode==='search'?'Ex: saxophoniste jazz Québec budget 500$...':'Ex: tournée Montréal→Paris→Bruxelles 3 semaines...'} style={{flex:1}}/>
         <Btn onClick={run} disabled={loading||!query.trim()}>{loading?<Spinner/>:'✦ Générer'}</Btn>
       </div>
-
       {err&&<div style={{color:C.red,fontSize:13,padding:'8px 12px',background:C.red+'11',border:'1px solid '+C.red+'33',borderRadius:8,marginBottom:12}}>{err}</div>}
-
       {result&&<div className='fade-in'>
         <div style={{background:C.orange+'11',border:'1px solid '+C.orange+'33',borderRadius:10,padding:14,marginBottom:14}}>
           <div style={{color:C.orangeLt,fontWeight:600,marginBottom:3}}>✦ {result.summary}</div>
@@ -278,7 +419,6 @@ function AIPanel({ profiles, myProfile, onLaunchTour }) {
           {matched.length===0&&<div style={{color:C.dim,fontSize:13,gridColumn:'1/-1',textAlign:'center',padding:'20px 0'}}>Aucun profil correspondant.</div>}
         </div>
       </div>}
-
       {tourPlan&&<TourPlanCard plan={tourPlan} profiles={profiles} onLaunch={()=>onLaunchTour(tourPlan)}/>}
     </div>
   );
@@ -325,7 +465,7 @@ function TourPlanCard({ plan, profiles, onLaunch }) {
   );
 }
 
-/* ── Profile Card (compact) ── */
+/* ── Profile Card ── */
 function ProfileCard({ a, myId, compact, onOpen }) {
   const [hov, setHov] = useState(false);
   return (
@@ -349,7 +489,7 @@ function ProfileCard({ a, myId, compact, onOpen }) {
   );
 }
 
-/* ── Invitation Send Modal ── */
+/* ── Invitation Modal ── */
 function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
   const [form, setForm] = useState({ tour_title:'', city:invitee.region||'', date:'', role:'headliner', note:'', cal_visibility:'private' });
   const [legalOk, setLegalOk] = useState(false);
@@ -361,19 +501,7 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
   const send = async () => {
     setLoading(true);
     try {
-      const inv = await createInvitation({
-        tour_title: form.tour_title||'Invitation',
-        organizer_id: organizer.id,
-        invitee_id: invitee.id,
-        city: form.city,
-        date: form.date||null,
-        role: form.role,
-        note: form.note,
-        status: 'pending',
-        legal_accepted_by_organizer: true,
-        organizer_signature: sig,
-        cal_visibility: form.cal_visibility,
-      });
+      const inv = await createInvitation({ tour_title:form.tour_title||'Invitation', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
       await sendMessage(organizer.id, invitee.id, 'Invitation de tournée : '+form.tour_title, form.note||'Vous avez reçu une invitation de tournée.', true, inv.id);
       toast.success('Invitation envoyée à '+invitee.name+' !');
       onSent();
@@ -392,7 +520,6 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
           </div>
           <button onClick={onClose} style={{background:'none',border:'none',color:C.dim,cursor:'pointer',fontSize:16}}>✕</button>
         </div>
-
         <div style={{flex:1,overflowY:'auto',padding:'16px 22px'}}>
           {step===0&&<div style={{display:'flex',flexDirection:'column',gap:13}}>
             {[{l:'Titre de la tournée',k:'tour_title',p:'Ex: Tournée Jazz Automne 2026'},{l:'Ville / Date',k:'city',p:'Montréal, Paris...'},{l:'Message personnel',k:'note',p:'Détails, attentes, conditions...'}].map(f=>(
@@ -411,7 +538,6 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
             </div>
             <Btn onClick={()=>setStep(1)}>Continuer → Accord légal</Btn>
           </div>}
-
           {step===1&&<div>
             <div style={{background:C.tag,border:'1px solid '+C.border,borderRadius:8,padding:12,marginBottom:12}}>
               <div style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:C.orange,marginBottom:8,fontWeight:600}}>Contrat simplifié StageMap</div>
@@ -425,7 +551,7 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
             <Inp value={sig} onChange={setSig} placeholder='Votre nom complet (signature électronique)...' style={{marginBottom:14}}/>
             <div style={{display:'flex',gap:9}}>
               <Btn v='ghost' onClick={()=>setStep(0)}>← Retour</Btn>
-              <Btn onClick={send} disabled={!legalOk||!sig.trim()||loading}>{loading?<Spinner/>:'🚀 Envoyer l\'invitation'}</Btn>
+              <Btn onClick={send} disabled={!legalOk||!sig.trim()||loading}>{loading?<Spinner/>:"🚀 Envoyer l'invitation"}</Btn>
             </div>
           </div>}
         </div>
@@ -440,9 +566,7 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
   const [invitations, setInvitations] = useState([]);
   const [invLoading, setInvLoading] = useState({});
 
-  useEffect(() => {
-    getMyInvitations(myId).then(data=>setInvitations(data||[]));
-  }, [myId]);
+  useEffect(() => { getMyInvitations(myId).then(data=>setInvitations(data||[])); }, [myId]);
 
   const respond = async (invId, status) => {
     setInvLoading(l=>({...l,[invId]:true}));
@@ -477,7 +601,6 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
             })}
           </div>
         )}
-
         {messages.map(m=>{
           const other=getProfile(m.from_id===myId?m.to_id:m.from_id);
           return <div key={m.id} onClick={()=>{setSel(m);if(!m.read&&m.to_id===myId)markMessageRead(m.id);}}
@@ -496,7 +619,6 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
         })}
         {messages.length===0&&pendingInvites.length===0&&<div style={{color:C.dim,fontSize:13,textAlign:'center',padding:'24px 0'}}>Aucun message</div>}
       </div>
-
       <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:11,padding:20}}>
         {!sel?<div style={{color:C.dim,textAlign:'center',paddingTop:50,fontSize:13}}>Sélectionnez un message</div>:(
           <div>
@@ -542,14 +664,12 @@ function CalendarView({ entries, myId, onRefresh }) {
           <div style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:C.dim,fontWeight:600}}>Mes événements</div>
           <Btn sz='sm' v='secondary' onClick={()=>setAdding(a=>!a)}>{adding?'✕ Annuler':'+ Ajouter'}</Btn>
         </div>
-
         {adding&&<div style={{background:C.tag,border:'1px solid '+C.border,borderRadius:10,padding:14,marginBottom:12}}>
           <Inp value={form.title} onChange={v=>set('title',v)} placeholder='Titre...' style={{marginBottom:8}}/>
           <input type='datetime-local' value={form.date_start} onChange={e=>set('date_start',e.target.value)} style={{background:C.tag,border:'1px solid '+C.border,borderRadius:8,padding:'7px 10px',color:C.text,fontFamily:"'Outfit',sans-serif",fontSize:12,outline:'none',width:'100%',marginBottom:8}}/>
           <Sel value={form.visibility} onChange={v=>set('visibility',v)} options={['private','shared','public']}/>
           <div style={{marginTop:10}}><Btn onClick={add} sz='sm'>Sauvegarder</Btn></div>
         </div>}
-
         {entries.length===0&&!adding&&<div style={{color:C.dim,fontSize:13,padding:'20px 0'}}>Aucun événement</div>}
         {entries.map((e,i)=>(
           <div key={e.id||i} style={{background:C.card,border:'1px solid '+C.border,borderLeft:'3px solid '+(typeColors2[e.event_type]||C.orange),borderRadius:9,padding:'10px 13px',marginBottom:9}}>
@@ -562,19 +682,13 @@ function CalendarView({ entries, myId, onRefresh }) {
           </div>
         ))}
       </div>
-
       <div>
         <div style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:C.dim,marginBottom:12,fontWeight:600}}>Partage de calendrier</div>
         <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:10,padding:14,marginBottom:14}}>
           <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Partagez votre calendrier public avec votre communauté ou vos partenaires.</div>
-          <div style={{background:C.tag,border:'1px solid '+C.border,borderRadius:6,padding:'7px 10px',fontSize:11,color:C.dim,marginBottom:10,wordBreak:'break-all'}}>
-            stagemap.io/cal/{myId?.slice(0,8)}
-          </div>
-          <div style={{display:'flex',gap:7}}>
-            <Btn v='ghost' sz='sm' onClick={()=>{navigator.clipboard.writeText('stagemap.io/cal/'+myId?.slice(0,8));toast.success('Lien copié !');}}>🔗 Copier lien</Btn>
-          </div>
+          <div style={{background:C.tag,border:'1px solid '+C.border,borderRadius:6,padding:'7px 10px',fontSize:11,color:C.dim,marginBottom:10,wordBreak:'break-all'}}>stagemap.io/cal/{myId?.slice(0,8)}</div>
+          <Btn v='ghost' sz='sm' onClick={()=>{navigator.clipboard.writeText('stagemap.io/cal/'+myId?.slice(0,8));toast.success('Lien copié !');}}>🔗 Copier lien</Btn>
         </div>
-
         <div style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:C.dim,marginBottom:12,fontWeight:600}}>Invitations envoyées</div>
         {entries.filter(e=>e.event_type==='invitation').length===0&&<div style={{color:C.dim,fontSize:12}}>Aucune invitation envoyée</div>}
       </div>
@@ -588,13 +702,11 @@ function PromoModule({ myProfile, isSubscribed }) {
   const [step, setStep] = useState('list');
   const [ev, setEv] = useState({ title:'', date:'', venue:'', city:'', genre:'', desc:'', visual:'🎷', budget:89 });
   const [pl, setPl] = useState({ stagemap:true, meta:false, google:false, tiktok:false, spotify:false });
-
   const totalBudget = Object.entries(pl).filter(([k,v])=>v&&k!=='stagemap').length*30+ev.budget;
 
   const launch = async () => {
-    try {
-      await startSubscription(pkg.id, myProfile.id);
-    } catch(e) { toast.error('Erreur paiement: '+e.message); }
+    try { await startSubscription(pkg.id, myProfile.id); }
+    catch(e) { toast.error('Erreur paiement: '+e.message); }
   };
 
   return (
@@ -606,11 +718,9 @@ function PromoModule({ myProfile, isSubscribed }) {
           <p style={{color:C.muted,fontSize:12,marginTop:2}}>Diffusez vos événements sur StageMap + plateformes externes</p>
         </div>
       </div>
-
       {step==='list'&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:14}}>
         {AD_PACKAGES.map(p=>(
-          <div key={p.id} onClick={()=>{setPkg(p);setStep('builder');}}
-            style={{background:C.card,border:'2px solid '+C.border,borderRadius:14,padding:20,cursor:'pointer',transition:'all .2s',position:'relative'}}
+          <div key={p.id} onClick={()=>{setPkg(p);setStep('builder');}} style={{background:C.card,border:'2px solid '+C.border,borderRadius:14,padding:20,cursor:'pointer',transition:'all .2s',position:'relative'}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor=p.color;e.currentTarget.style.transform='translateY(-3px)';}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform='none';}}>
             {p.badge&&<div style={{position:'absolute',top:-10,right:14,background:C.orange,color:'#fff',borderRadius:20,padding:'2px 10px',fontSize:10,fontWeight:700}}>★ {p.badge}</div>}
@@ -630,7 +740,6 @@ function PromoModule({ myProfile, isSubscribed }) {
           </div>
         ))}
       </div>}
-
       {step==='builder'&&<div>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
           <button onClick={()=>setStep('list')} style={{background:'none',border:'none',color:C.muted,cursor:'pointer',fontSize:18}}>←</button>
@@ -669,7 +778,8 @@ function PromoModule({ myProfile, isSubscribed }) {
 }
 
 /* ── My Profile Tab ── */
-function MyProfileTab({ profile, setProfile, user, onLogout, isSubscribed }) {
+function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAddProfile, isSubscribed }) {
+  const { updateUserProfile } = useStore();
   const [editing, setEditing] = useState(false);
   const [p, setP] = useState({ ...profile, links: Array.isArray(profile.links)?profile.links.join(', '):profile.links||'' });
   const [loading, setLoading] = useState(false);
@@ -685,6 +795,7 @@ function MyProfileTab({ profile, setProfile, user, onLogout, isSubscribed }) {
         lat: coords.lat+(Math.random()-.5)*.2,
         lng: coords.lng+(Math.random()-.5)*.2,
       });
+      updateUserProfile(updated);
       setProfile(updated);
       setEditing(false);
       toast.success('Profil mis à jour ✓');
@@ -733,13 +844,12 @@ function MyProfileTab({ profile, setProfile, user, onLogout, isSubscribed }) {
   return (
     <div style={{maxWidth:600}} className='fade-in'>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>Mon profil</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>Mon profil actif</div>
         <div style={{display:'flex',gap:8}}>
           <Btn v='secondary' sz='sm' onClick={()=>setEditing(true)}>✏️ Modifier</Btn>
           <Btn v='ghost' sz='sm' onClick={onLogout}>Déconnexion</Btn>
         </div>
       </div>
-
       <div style={{background:C.card,border:'1px solid '+C.orange+'44',borderRadius:16,padding:24,marginBottom:16}}>
         <div style={{display:'flex',gap:16,marginBottom:16}}>
           <div style={{fontSize:48,width:72,height:72,background:C.tag,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid '+C.orange}}>{profile.avatar||'🎵'}</div>
@@ -757,11 +867,29 @@ function MyProfileTab({ profile, setProfile, user, onLogout, isSubscribed }) {
         </div>
         {profile.bio&&<p style={{color:C.muted,fontSize:13,lineHeight:1.6,marginBottom:10}}>{profile.bio}</p>}
         {profile.fee&&<div style={{color:C.amber,fontSize:13,marginBottom:8}}>💰 {profile.fee}</div>}
-        {profile.rating>0&&<div style={{marginBottom:8}}><Stars r={profile.rating}/> <span style={{color:C.dim,fontSize:11}}>({profile.rating_count} avis)</span></div>}
         {profile.links&&profile.links.length>0&&<div>{profile.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:5,marginBottom:5,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 8px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
         <div style={{marginTop:12,background:C.orange+'11',border:'1px solid '+C.orange+'33',borderRadius:8,padding:10,fontSize:12,color:C.muted}}>
           ✦ Votre profil est <strong style={{color:C.green}}>visible sur la carte</strong> et dans le répertoire.
         </div>
+      </div>
+
+      {userProfiles && userProfiles.length > 1 && (
+        <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:12,padding:18,marginBottom:16}}>
+          <div style={{fontWeight:700,color:C.text,marginBottom:12,fontSize:13}}>Mes autres profils</div>
+          {userProfiles.filter(p=>p.id!==profile.id).map(p=>(
+            <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid '+C.border+'44'}}>
+              <span style={{fontSize:22}}>{p.avatar}</span>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{p.name}</div>
+                <div style={{fontSize:11,color:C.muted}}>{typeLabels[p.type]} · {p.region}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{marginBottom:16}}>
+        <Btn v='secondary' onClick={onAddProfile} full>＋ Ajouter un profil</Btn>
       </div>
 
       {!isSubscribed&&<div style={{background:C.card,border:'1px solid '+C.border,borderRadius:12,padding:18}}>
@@ -781,7 +909,7 @@ function MyProfileTab({ profile, setProfile, user, onLogout, isSubscribed }) {
 ═══════════════════════════════════ */
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { session, user, profile, setProfile, setProfiles, tab, setTab } = useStore();
+  const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfiles, switchProfile } = useStore();
 
   const [profiles, setLocalProfiles] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -795,7 +923,6 @@ export default function Dashboard() {
 
   const isSubscribed = checkSubscription(profile);
 
-  // Load profiles
   const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
     try {
@@ -809,11 +936,9 @@ export default function Dashboard() {
   useEffect(() => { loadProfiles(); }, [filter]);
   useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);
 
-  // Load messages
   useEffect(() => {
     if (!user) return;
     getMessages(user.id).then(setMessages);
-    // Subscribe to new messages
     const sub = supabase.channel('messages_'+user.id)
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:'to_id=eq.'+user.id }, () => {
         getMessages(user.id).then(setMessages);
@@ -822,7 +947,6 @@ export default function Dashboard() {
     return () => supabase.removeChannel(sub);
   }, [user]);
 
-  // Load calendar
   useEffect(() => {
     if (!user) return;
     getMyCalendar(user.id).then(setCalEntries);
@@ -831,6 +955,12 @@ export default function Dashboard() {
   const handleLogout = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  const handleAddProfile = () => navigate('/onboard');
+  const handleSwitchProfile = (profileId) => {
+    switchProfile(profileId);
+    toast.success('Profil changé ✓');
   };
 
   const openChat = (p) => { setChatPartner(p); setInviteTarget(null); };
@@ -855,8 +985,6 @@ export default function Dashboard() {
 
   return (
     <div style={{fontFamily:"'Outfit',sans-serif",background:C.bg,color:C.text,minHeight:'100vh'}}>
-
-      {/* Header */}
       <header style={{background:'linear-gradient(135deg,'+C.bg+' 0%,#2a1200 100%)',borderBottom:'1px solid '+C.border,padding:'0 20px',height:58,display:'flex',alignItems:'center',gap:10,position:'sticky',top:0,zIndex:500,boxShadow:'0 4px 32px #00000060'}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <span style={{fontSize:22}}>🎭</span>
@@ -876,14 +1004,17 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {profile&&<div onClick={()=>setTab('me')} style={{display:'flex',alignItems:'center',gap:6,background:C.tag,border:'1px solid '+C.border,borderRadius:20,padding:'4px 10px',cursor:'pointer',flexShrink:0}}>
-          <span style={{fontSize:16}}>{profile.avatar||'🎵'}</span>
-          <span style={{fontSize:11,color:C.text,maxWidth:90,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile.name}</span>
-          {isSubscribed&&<span style={{color:C.glow,fontSize:9}}>✦</span>}
-        </div>}
+        {profile && (
+          <ProfileSwitcher
+            profile={profile}
+            userProfiles={userProfiles && userProfiles.length > 0 ? userProfiles : [profile]}
+            onSwitch={handleSwitchProfile}
+            onAdd={handleAddProfile}
+            onLogout={handleLogout}
+          />
+        )}
       </header>
 
-      {/* Search bar */}
       {(tab==='map'||tab==='list')&&(
         <div style={{background:C.card,borderBottom:'1px solid '+C.border,padding:'8px 20px',display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder='🔍 Nom, région, genre, pays...' style={{background:C.tag,border:'1px solid '+C.border,borderRadius:8,padding:'6px 12px',color:C.text,fontFamily:"'Outfit',sans-serif",fontSize:12,outline:'none',width:220}}/>
@@ -898,10 +1029,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Main content */}
       <main style={{padding:'20px',maxWidth:1100,margin:'0 auto'}}>
         {tab==='map'&&<MapView artists={filtered} myProfile={profile} onOpen={setProfileModal}/>}
-
         {tab==='list'&&(
           <div className='fade-in' style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
             {loadingProfiles&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
@@ -909,16 +1038,11 @@ export default function Dashboard() {
             {!loadingProfiles&&filtered.length===0&&<div style={{gridColumn:'1/-1',color:C.dim,textAlign:'center',padding:'30px 0'}}>Aucun profil trouvé</div>}
           </div>
         )}
-
         {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={plan=>{}}/>}
-
         {tab==='inbox'&&<InboxView messages={messages} myId={user?.id} profiles={profiles} onChat={openChat} onRefresh={()=>getMessages(user.id).then(setMessages)}/>}
-
         {tab==='cal'&&<CalendarView entries={calEntries} myId={user?.id} onRefresh={()=>getMyCalendar(user.id).then(setCalEntries)}/>}
-
         {tab==='promo'&&<PromoModule myProfile={profile} isSubscribed={isSubscribed}/>}
-
-        {tab==='me'&&profile&&<MyProfileTab profile={profile} setProfile={setProfile} user={user} onLogout={handleLogout} isSubscribed={isSubscribed}/>}
+        {tab==='me'&&profile&&<MyProfileTab profile={profile} userProfiles={userProfiles||[profile]} setProfile={setProfile} user={user} onLogout={handleLogout} onAddProfile={handleAddProfile} isSubscribed={isSubscribed}/>}
       </main>
 
       <footer style={{borderTop:'1px solid '+C.border,padding:'12px 20px',display:'flex',justifyContent:'space-between',color:C.dim,fontSize:11}}>
@@ -926,7 +1050,6 @@ export default function Dashboard() {
         <span>{profiles.length} profils enregistrés</span>
       </footer>
 
-      {/* Overlays */}
       {profileModal&&<ProfileModal a={profileModal} myId={profile?.id} onClose={()=>setProfileModal(null)} onChat={openChat} onInvite={openInvite}/>}
       {chatPartner&&profile&&<ChatPanel myProfile={profile} partner={chatPartner} onClose={()=>setChatPartner(null)}/>}
       {inviteTarget&&profile&&(
