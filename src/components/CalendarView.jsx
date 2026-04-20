@@ -86,8 +86,10 @@ function EventFormModal({date,event,myId,onSave,onDelete,onClose}) {
       const entry={
         user_id:myId,title:form.title,description:form.description,
         event_type:form.event_type,
-        date_start: form.date_start ? form.date_start + 'T' + (form.time_start || '00:00') : null,
-        date_end: form.date_end ? form.date_end + 'T' + (form.time_end || '23:59') : null,
+        date_start: event?.date_start ? new Date(event.date_start).toLocaleDateString('en-CA') : (date ? `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}` : ''),
+        date_end: event?.date_end ? new Date(event.date_end).toLocaleDateString('en-CA') : (date ? `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}` : ''),
+        time_start: event?.time_start || (event?.date_start ? new Date(event.date_start).toLocaleTimeString('en-CA', {hour:'2-digit', minute:'2-digit', hour12:false}) : '09:00'),
+        time_end: event?.time_end || (event?.date_end ? new Date(event.date_end).toLocaleTimeString('en-CA', {hour:'2-digit', minute:'2-digit', hour12:false}) : '17:00'),
         time_start:form.time_start,time_end:form.time_end,
         location:form.location,visibility:form.visibility,
         recurrence:form.recurrence,notify_email:form.notify_email,
