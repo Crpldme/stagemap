@@ -1,7 +1,7 @@
 // src/components/CalendarView.jsx
-import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { useState, useEffect, useCallback } from 'react';
 
 const C = {
   bg:"#140c00", bg2:"#1e1100", card:"#271500", cardHov:"#301a00",
@@ -241,6 +241,218 @@ function DayPanel({date,events,onEdit,onClose,onNew}) {
 /* ══════════════════════════════════
    MAIN CalendarView
 ══════════════════════════════════ */
+/* ── Profile Search ── */
+function ProfileSearch({ profiles, onSelect, onClose }) {
+  const [q, setQ] = useState('');
+  const filtered = profiles.filter(p =>
+    (p.name + p.genre + p.region).toLowerCase().includes(q.toLowerCase())
+  ).slice(0, 8);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#00000090', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.bg2, border: '1px solid ' + C.border, borderRadius: 16, maxWidth: 420, width: '100%', boxShadow: '0 40px 100px #00000090' }}>
+        <div style={{ padding: '15px 20px', borderBottom: '1px solid ' + C.border, background: C.card, borderRadius: '16px 16px 0 0' }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: C.cream, marginBottom: 10 }}>Comparer avec...</div>
+          <input value={q} onChange={e => setQ(e.target.value)} autoFocus
+            placeholder='Chercher un artiste, lieu...'
+            style={{ background: C.tag, border: '1px solid ' + C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: 'none', width: '100%' }} />
+        </div>
+        <div style={{ padding: 12, maxHeight: 320, overflowY: 'auto' }}>
+          {filtered.length === 0 && <div style={{ color: C.dim, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Aucun profil trouvé</div>}
+          {filtered.map(p => (
+            <div key={p.id} onClick={() => onSelect(p)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}
+              onMouseEnter={e => e.currentTarget.style.background = C.card}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              <span style={{ fontSize: 24 }}>{p.avatar || '🎵'}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.name}</div>
+                <div style={{ fontSize: 11, color: C.muted }}>{p.genre} · {p.region}</div>
+              </div>
+              <span style={{ fontSize: 10, color: C.green }}>Voir agenda →</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Shared Calendar View ── */
+function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [myEntries, setMyEntries] = useState([]);
+  const [otherEntries, setOtherEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+
+  const loadEntries = async () => {
+    setLoading(true);
+    try {
+      const from = new Date(year, month - 1, 1).toISOString();
+      const to = new Date(year, month + 2, 0).toISOString();
+
+      const [{ data: mine }, { data: theirs }] = await Promise.all([
+        supabase.from('calendar_entries').select('*').eq('user_id', myId).gte('date_start', from).lte('date_start', to),
+        supabase.from('calendar_entries').select('*').eq('user_id', otherProfile.id).eq('visibility', 'public').gte('date_start', from).lte('date_start', to),
+      ]);
+      setMyEntries(mine || []);
+      setOtherEntries(theirs || []);
+    } catch (e) { toast.error(e.message); }
+    setLoading(false);
+  };
+
+  useEffect(() => { loadEntries(); }, [year, month]);
+
+  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDay = getFirstDayOfMonth(year, month);
+
+  const getMyAvail = (day) => {
+    const d = new Date(year, month, day);
+    return myEntries.filter(e => {
+      if (e.event_type !== 'availability') return false;
+      const start = new Date(e.date_start);
+      const end = new Date(e.date_end || e.date_start);
+      const dStart = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const dEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      return d >= dStart && d <= dEnd;
+    });
+  };
+
+  const getOtherAvail = (day) => {
+    const d = new Date(year, month, day);
+    return otherEntries.filter(e => {
+      if (e.event_type !== 'availability') return false;
+      const start = new Date(e.date_start);
+      const end = new Date(e.date_end || e.date_start);
+      const dStart = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const dEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      return d >= dStart && d <= dEnd;
+    });
+  };
+
+  const getMyEvents = (day) => {
+    const d = new Date(year, month, day);
+    return myEntries.filter(e => {
+      if (e.event_type === 'availability') return false;
+      const start = new Date(e.date_start);
+      const dStart = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      return isSameDay(d, dStart);
+    });
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#00000095', zIndex: 2500, display: 'flex', flexDirection: 'column', padding: 20, overflowY: 'auto' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.bg2, border: '1px solid ' + C.border, borderRadius: 16, maxWidth: 900, width: '100%', margin: '0 auto', boxShadow: '0 40px 100px #00000090' }}>
+
+        {/* Header */}
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid ' + C.border, background: C.card, borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ fontSize: 28 }}>{otherProfile.avatar || '🎵'}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: C.cream }}>Disponibilités partagées avec {otherProfile.name}</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Cliquez sur une plage commune 🟢🟢 pour envoyer une invitation</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 18 }}>✕</button>
+        </div>
+
+        {/* Légende */}
+        <div style={{ padding: '10px 22px', borderBottom: '1px solid ' + C.border, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          {[
+            { color: C.green, label: 'Vous disponible' },
+            { color: C.blue, label: otherProfile.name + ' disponible' },
+            { color: C.purple, label: '✨ Commun — cliquer pour inviter' },
+            { color: C.orange, label: 'Vos événements' },
+          ].map(l => (
+            <span key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.muted }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: l.color, display: 'inline-block' }} />{l.label}
+            </span>
+          ))}
+        </div>
+
+        {/* Nav mois */}
+        <div style={{ padding: '12px 22px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={prevMonth} style={{ background: C.tag, border: '1px solid ' + C.border, borderRadius: 7, color: C.muted, cursor: 'pointer', padding: '5px 10px', fontSize: 14 }}>‹</button>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: C.cream, flex: 1, textAlign: 'center' }}>{MONTHS_FR[month]} {year}</div>
+          <button onClick={nextMonth} style={{ background: C.tag, border: '1px solid ' + C.border, borderRadius: 7, color: C.muted, cursor: 'pointer', padding: '5px 10px', fontSize: 14 }}>›</button>
+        </div>
+
+        {/* Grille */}
+        <div style={{ padding: '0 22px 22px' }}>
+          {loading && <div style={{ textAlign: 'center', padding: '40px 0', color: C.muted }}>Chargement des calendriers…</div>}
+          {!loading && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+                {DAYS_FR.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', padding: '4px 0' }}>{d}</div>)}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+                {[...Array(firstDay)].map((_, i) => <div key={'e' + i} style={{ minHeight: 70, background: C.bg + '80', borderRadius: 6 }} />)}
+                {[...Array(daysInMonth)].map((_, i) => {
+                  const day = i + 1;
+                  const d = new Date(year, month, day);
+                  const isToday = isSameDay(d, today);
+                  const myAvail = getMyAvail(day);
+                  const otherAvail = getOtherAvail(day);
+                  const myEvents = getMyEvents(day);
+                  const bothAvail = myAvail.length > 0 && otherAvail.length > 0;
+                  const onlyMe = myAvail.length > 0 && otherAvail.length === 0;
+                  const onlyOther = myAvail.length === 0 && otherAvail.length > 0;
+
+                  let bg = C.card;
+                  let border = isToday ? C.glow + '66' : C.border;
+                  if (bothAvail) { bg = C.purple + '22'; border = C.purple; }
+                  else if (onlyMe) { bg = C.green + '11'; border = C.green + '66'; }
+                  else if (onlyOther) { bg = C.blue + '11'; border = C.blue + '66'; }
+
+                  return (
+                    <div key={day}
+                      onClick={() => bothAvail && setSelectedSlot({ day, date: d, myAvail, otherAvail })}
+                      style={{ minHeight: 70, background: bg, border: '1px solid ' + border, borderRadius: 8, padding: '5px 4px', cursor: bothAvail ? 'pointer' : 'default', transition: 'all .15s', position: 'relative' }}
+                      onMouseEnter={e => { if (bothAvail) e.currentTarget.style.transform = 'scale(1.03)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>
+                      <div style={{ fontSize: 11, fontWeight: isToday ? 700 : 400, color: isToday ? C.glow : C.text, marginBottom: 3 }}>{day}</div>
+                      {bothAvail && <div style={{ fontSize: 9, color: C.purple, fontWeight: 700 }}>✨ Commun</div>}
+                      {onlyMe && <div style={{ fontSize: 9, color: C.green }}>🟢 Vous</div>}
+                      {onlyOther && <div style={{ fontSize: 9, color: C.blue }}>🔵 {otherProfile.name.split(' ')[0]}</div>}
+                      {myEvents.slice(0, 1).map(e => (
+                        <div key={e.id} style={{ background: C.orange + '33', borderLeft: '2px solid ' + C.orange, borderRadius: 2, padding: '1px 3px', fontSize: 9, color: C.orange, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Panneau invitation */}
+        {selectedSlot && (
+          <div style={{ margin: '0 22px 22px', background: C.purple + '11', border: '1px solid ' + C.purple + '44', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 700, color: C.cream, marginBottom: 8 }}>
+              ✨ Plage commune — {selectedSlot.date.toLocaleDateString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+              Vous êtes tous les deux disponibles ce jour. Envoyez une invitation à {otherProfile.name} !
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn onClick={() => { onInvite(otherProfile, selectedSlot.date); onClose(); }}>
+                🗺️ Envoyer une invitation pour ce jour
+              </Btn>
+              <Btn v='ghost' onClick={() => setSelectedSlot(null)}>Annuler</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
 export function CalendarView({myId,profiles=[]}) {
   const today=new Date();
   const [year,setYear]=useState(today.getFullYear());
@@ -252,6 +464,9 @@ export function CalendarView({myId,profiles=[]}) {
   const [editEvent,setEditEvent]=useState(null);
   const [view,setView]=useState('month');
   const [filterType,setFilterType]=useState('all');
+  const [showSearch, setShowSearch] = useState(false);
+  const [compareProfile, setCompareProfile] = useState(null);
+  const [inviteDate, setInviteDate] = useState(null);
 
   const loadEntries=async()=>{
     setLoading(true);
@@ -310,6 +525,8 @@ export function CalendarView({myId,profiles=[]}) {
               {v.l}
             </button>
           ))}
+          <Btn v='secondary' sz='sm' onClick={() => setShowSearch(true)}>👥 Comparer avec...</Btn>
+          <Btn sz='sm' onClick={() => { setFormDate(today); setEditEvent(null); }}>+ Nouveau</Btn>
           <Btn sz='sm' onClick={()=>{setFormDate(today);setEditEvent(null);}}>+ Nouveau</Btn>
         </div>
       </div>
@@ -396,7 +613,25 @@ export function CalendarView({myId,profiles=[]}) {
         </div>
         <Btn v='ghost' sz='sm' onClick={()=>{navigator.clipboard.writeText('stagemap.io/cal/'+myId?.slice(0,8));toast.success('Lien copié !');}}>Copier</Btn>
       </div>
+{showSearch && (
+  <ProfileSearch
+    profiles={profiles}
+    onSelect={p => { setCompareProfile(p); setShowSearch(false); }}
+    onClose={() => setShowSearch(false)}
+  />
+)}
 
+{compareProfile && (
+  <SharedCalendarView
+    myId={myId}
+    otherProfile={compareProfile}
+    onClose={() => setCompareProfile(null)}
+    onInvite={(profile, date) => {
+      setInviteDate(date);
+      setCompareProfile(null);
+    }}
+  />
+)}
       {(formDate||editEvent)&&(
         <EventFormModal date={formDate} event={editEvent} myId={myId}
           onSave={()=>{setFormDate(null);setEditEvent(null);loadEntries();}}
