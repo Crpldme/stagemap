@@ -991,7 +991,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
 
       <footer style={{borderTop:'1px solid '+C.border,padding:'12px 20px',display:'flex',justifyContent:'space-between',color:C.dim,fontSize:11}}>
         <span>© 2026 StageMap — Réseau Scène Global</span>
-        <span>{profiles.length} profils enregistrés</span>
+        <span>{profiles?.length} profils enregistrés</span>
       </footer>
 
       {profileModal&&<ProfileModal a={profileModal} myId={profile?.id} onClose={()=>setProfileModal(null)} onChat={openChat} onInvite={openInvite}/>}
