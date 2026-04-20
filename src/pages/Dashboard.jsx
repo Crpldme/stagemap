@@ -639,62 +639,7 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
 }
 
 /* ── Calendar View ── */
-function CalendarView({ entries, myId, onRefresh }) {
-  const [form, setForm] = useState({ title:'', date_start:'', event_type:'event', visibility:'private' });
-  const [adding, setAdding] = useState(false);
-  const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
-  const add = async () => {
-    if (!form.title||!form.date_start) { toast.error('Titre et date requis'); return; }
-    try {
-      await addCalendarEntry({ ...form, user_id: myId });
-      toast.success('Événement ajouté ✓');
-      setAdding(false);
-      setForm({ title:'', date_start:'', event_type:'event', visibility:'private' });
-      onRefresh();
-    } catch(e) { toast.error(e.message); }
-  };
-
-  const typeColors2 = { event:C.orange, booking:C.green, invitation:C.blue, personal:C.muted };
-
-  return (
-    <div className='fade-in' style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
-      <div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-          <div style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:C.dim,fontWeight:600}}>Mes événements</div>
-          <Btn sz='sm' v='secondary' onClick={()=>setAdding(a=>!a)}>{adding?'✕ Annuler':'+ Ajouter'}</Btn>
-        </div>
-        {adding&&<div style={{background:C.tag,border:'1px solid '+C.border,borderRadius:10,padding:14,marginBottom:12}}>
-          <Inp value={form.title} onChange={v=>set('title',v)} placeholder='Titre...' style={{marginBottom:8}}/>
-          <input type='datetime-local' value={form.date_start} onChange={e=>set('date_start',e.target.value)} style={{background:C.tag,border:'1px solid '+C.border,borderRadius:8,padding:'7px 10px',color:C.text,fontFamily:"'Outfit',sans-serif",fontSize:12,outline:'none',width:'100%',marginBottom:8}}/>
-          <Sel value={form.visibility} onChange={v=>set('visibility',v)} options={['private','shared','public']}/>
-          <div style={{marginTop:10}}><Btn onClick={add} sz='sm'>Sauvegarder</Btn></div>
-        </div>}
-        {entries.length===0&&!adding&&<div style={{color:C.dim,fontSize:13,padding:'20px 0'}}>Aucun événement</div>}
-        {entries.map((e,i)=>(
-          <div key={e.id||i} style={{background:C.card,border:'1px solid '+C.border,borderLeft:'3px solid '+(typeColors2[e.event_type]||C.orange),borderRadius:9,padding:'10px 13px',marginBottom:9}}>
-            <div style={{fontWeight:600,fontSize:13,marginBottom:2}}>{e.title}</div>
-            <div style={{color:C.orange,fontSize:11}}>📅 {new Date(e.date_start).toLocaleDateString('fr',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}</div>
-            <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
-              <span style={{fontSize:10,color:C.dim}}>{e.event_type}</span>
-              <span style={{fontSize:10,color:e.visibility==='public'?C.green:e.visibility==='shared'?C.blue:C.dim}}>{e.visibility==='public'?'🌐 Public':e.visibility==='shared'?'🔗 Partagé':'🔒 Privé'}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div>
-        <div style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:C.dim,marginBottom:12,fontWeight:600}}>Partage de calendrier</div>
-        <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:10,padding:14,marginBottom:14}}>
-          <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Partagez votre calendrier public avec votre communauté ou vos partenaires.</div>
-          <div style={{background:C.tag,border:'1px solid '+C.border,borderRadius:6,padding:'7px 10px',fontSize:11,color:C.dim,marginBottom:10,wordBreak:'break-all'}}>stagemap.io/cal/{myId?.slice(0,8)}</div>
-          <Btn v='ghost' sz='sm' onClick={()=>{navigator.clipboard.writeText('stagemap.io/cal/'+myId?.slice(0,8));toast.success('Lien copié !');}}>🔗 Copier lien</Btn>
-        </div>
-        <div style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:C.dim,marginBottom:12,fontWeight:600}}>Invitations envoyées</div>
-        {entries.filter(e=>e.event_type==='invitation').length===0&&<div style={{color:C.dim,fontSize:12}}>Aucune invitation envoyée</div>}
-      </div>
-    </div>
-  );
-}
 
 /* ── Promo Module ── */
 function PromoModule({ myProfile, isSubscribed }) {
