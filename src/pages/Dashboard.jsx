@@ -986,7 +986,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
         )}
         {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={plan=>{}}/>}
         {tab==='inbox'&&<InboxView messages={messages} myId={user?.id} profiles={profiles} onChat={openChat} onRefresh={()=>getMessages(user.id).then(setMessages)}/>}
-        {tab==='cal'&&<CalendarView myId={profile?.id} profiles={profiles}/>}
+        {tab==='cal'&&<CalendarView myId={user?.id} profiles={profiles}/>}
         {tab==='promo'&&<PromoModule myProfile={profile} isSubscribed={isSubscribed}/>}
         {tab==='me'&&profile&&<MyProfileTab profile={profile} userProfiles={userProfiles||[profile]} setProfile={setProfile} user={user} onLogout={handleLogout} onAddProfile={handleAddProfile} isSubscribed={isSubscribed}/>}
       </main>
