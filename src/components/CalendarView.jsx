@@ -527,7 +527,6 @@ export function CalendarView({myId,profiles=[]}) {
           ))}
           <Btn v='secondary' sz='sm' onClick={() => setShowSearch(true)}>👥 Comparer avec...</Btn>
           <Btn sz='sm' onClick={() => { setFormDate(today); setEditEvent(null); }}>+ Nouveau</Btn>
-          <Btn sz='sm' onClick={()=>{setFormDate(today);setEditEvent(null);}}>+ Nouveau</Btn>
         </div>
       </div>
 
