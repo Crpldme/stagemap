@@ -14,6 +14,7 @@ import { runAI, buildTourPlannerSystem } from '../lib/ai';
 import { startSubscription, checkSubscription, PRICES } from '../lib/stripe';
 import Map, { Marker, Popup, NavigationControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { CalendarView } from '../components/CalendarView';
 
 /* ── Design Tokens ── */
 const C = {
@@ -362,7 +363,7 @@ function ChatPanel({ myProfile, partner, onClose }) {
 }
 
 /* ── AI Tour Planner ── */
-function AIPanel({ profiles, myProfile, onLaunchTour }) {
+function AIPanel({ profiles = [], myProfile, onLaunchTour }) {
   const [mode, setMode] = useState('search');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -393,7 +394,10 @@ function AIPanel({ profiles, myProfile, onLaunchTour }) {
         <span style={{fontSize:28}}>🤖</span>
         <div>
           <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>Recherche et Planification IA</h2>
-<p style={{color:C.muted,fontSize:12,marginTop:2}}>Décrivez en langage naturel — l'IA cherche parmi les {profiles?.length || 0} vrais profils</p>      <div style={{display:'flex',gap:7,marginBottom:10}}>
+          <p style={{color:C.muted,fontSize:12,marginTop:2}}>Décrivez en langage naturel — l'IA cherche parmi les {profiles?.length || 0} vrais profils</p>
+        </div>
+      </div>
+      <div style={{display:'flex',gap:7,marginBottom:10}}>
         {[{k:'search',l:'🔍 Recherche'},{k:'tour',l:'🗺️ Tournée IA'}].map(m=>(
           <button key={m.k} onClick={()=>setMode(m.k)} style={{background:mode===m.k?C.orange+'22':C.tag,color:mode===m.k?C.orange:C.muted,border:'1px solid '+(mode===m.k?C.orange:C.border),borderRadius:20,padding:'5px 14px',cursor:'pointer',fontSize:12,fontFamily:"'Outfit',sans-serif",fontWeight:mode===m.k?600:400}}>{m.l}</button>
         ))}
@@ -412,7 +416,7 @@ function AIPanel({ profiles, myProfile, onLaunchTour }) {
           {result.tip&&<div style={{color:C.muted,fontSize:12}}>💡 {result.tip}</div>}
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12}}>
-          {matched.map(a=><ProfileCard key={a.id} a={a} myId={myProfile.id} compact/>)}
+          {matched.map(a=><ProfileCard key={a.id} a={a} myId={myProfile?.id} compact/>)}
           {matched?.length===0&&<div style={{color:C.dim,fontSize:13,gridColumn:'1/-1',textAlign:'center',padding:'20px 0'}}>Aucun profil correspondant.</div>}
         </div>
       </div>}
