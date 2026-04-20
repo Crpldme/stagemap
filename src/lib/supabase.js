@@ -1,4 +1,4 @@
-// src/lib/supabase.js
+f// src/lib/supabase.js
 import { createClient } from '@supabase/supabase-js';
 
 export const supabase = createClient(
@@ -130,15 +130,24 @@ export const getAllProfiles = async (filters = {}) => {
 // ── Message helpers ──────────────────────────────────────────
 
 export const getMessages = async (userId) => {
+  // Récupère tous les profile IDs de cet utilisateur
+  const { data: userProfiles } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('user_id', userId);
+  
+  const profileIds = userProfiles ? userProfiles.map(p => p.id) : [userId];
+  const allIds = [...new Set([userId, ...profileIds])];
+  
   const { data, error } = await supabase
     .from('messages')
     .select('*, from:from_id(id,name,avatar), to:to_id(id,name,avatar)')
-    .or(`from_id.eq.${userId},to_id.eq.${userId}`)
+    .or(allIds.map(id => `from_id.eq.${id},to_id.eq.${id}`).join(','))
     .order('created_at', { ascending: false });
+  
   if (error) throw error;
   return data || [];
 };
-
 export const sendMessage = async (fromId, toId, subject, body, hasInvite = false, inviteId = null) => {
   const { data, error } = await supabase
     .from('messages')

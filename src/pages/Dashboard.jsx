@@ -503,8 +503,7 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
     setLoading(true);
     try {
       const inv = await createInvitation({ tour_title:form.tour_title||'Invitation', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
-      await sendMessage(organizer.id, invitee.id, 'Invitation de tournée : '+form.tour_title, form.note||'Vous avez reçu une invitation de tournée.', true, inv.id);
-      toast.success('Invitation envoyée à '+invitee.name+' !');
+await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.id, 'Invitation de tournée : '+form.tour_title, form.note||'Vous avez reçu une invitation de tournée.', true, inv.id);      toast.success('Invitation envoyée à '+invitee.name+' !');
       onSent();
     } catch(e) { toast.error('Erreur: '+e.message); }
     setLoading(false);
@@ -986,7 +985,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
         )}
         {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={plan=>{}}/>}
         {tab==='inbox'&&<InboxView messages={messages} myId={user?.id} profiles={profiles} onChat={openChat} onRefresh={()=>getMessages(user.id).then(setMessages)}/>}
-        {tab==='cal'&&<CalendarView myId={user?.id} profiles={profiles}/>}
+        {tab==='cal'&&<CalendarView myId={user?.id} profiles={profiles} onInvite={(p, date) => { setInviteTarget(p); }} />}
         {tab==='promo'&&<PromoModule myProfile={profile} isSubscribed={isSubscribed}/>}
         {tab==='me'&&profile&&<MyProfileTab profile={profile} userProfiles={userProfiles||[profile]} setProfile={setProfile} user={user} onLogout={handleLogout} onAddProfile={handleAddProfile} isSubscribed={isSubscribed}/>}
       </main>
