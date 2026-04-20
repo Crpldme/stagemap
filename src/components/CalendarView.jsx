@@ -454,8 +454,7 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
 /* ══════════════════════════════════
    MAIN CalendarView
 ══════════════════════════════════ */
-export function CalendarView({ myId, profiles = [] }) {
-  const today = new Date();
+export function CalendarView({ myId, profiles = [], onInvite }) {  const today = new Date();
   const [year, setYear]               = useState(today.getFullYear());
   const [month, setMonth]             = useState(today.getMonth());
   const [entries, setEntries]         = useState([]);
