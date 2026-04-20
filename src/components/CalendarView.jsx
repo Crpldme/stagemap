@@ -86,14 +86,16 @@ function EventFormModal({date,event,myId,onSave,onDelete,onClose}) {
       const entry={
         user_id:myId,title:form.title,description:form.description,
         event_type:form.event_type,
-        date_start: form.date_start + 'T' + form.time_start,
-        date_end: form.date_end + 'T' + form.time_end,
+        date_start: form.date_start ? form.date_start + 'T' + (form.time_start || '00:00') : null,
+        date_end: form.date_end ? form.date_end + 'T' + (form.time_end || '23:59') : null,
         time_start:form.time_start,time_end:form.time_end,
         location:form.location,visibility:form.visibility,
         recurrence:form.recurrence,notify_email:form.notify_email,
         is_availability:form.is_availability,
         color:getEventColor(form.event_type),
       };
+      if (!form.title) { toast.error('Titre requis'); return; }
+      if (!form.date_start) { toast.error('Date de début requise'); return; }
       if(isEdit){
         const{error}=await supabase.from('calendar_entries').update(entry).eq('id',event.id);
         if(error)throw error;
