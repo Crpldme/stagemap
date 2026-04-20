@@ -160,8 +160,8 @@ function MapView({ artists, myProfile, onOpen }) {
   const [mapError, setMapError] = useState(false);
 
   const withCoords = artists.filter(a => a.lat && a.lng);
-  const centerLng = withCoords.length ? withCoords.reduce((s,a)=>s+a.lng,0)/withCoords.length : -45;
-  const centerLat = withCoords.length ? withCoords.reduce((s,a)=>s+a.lat,0)/withCoords.length : 47;
+  const centerLng = withCoords?.length ? withCoords.reduce((s,a)=>s+a.lng,0)/withCoords?.length : -45;
+  const centerLat = withCoords?.length ? withCoords.reduce((s,a)=>s+a.lat,0)/withCoords?.length : 47;
   const [viewport, setViewport] = useState({ longitude: centerLng, latitude: centerLat, zoom: 3.2 });
 
   const tokenOk = MAPBOX_TOKEN && MAPBOX_TOKEN !== 'pk.eyJ1IjoieW91...' && MAPBOX_TOKEN.startsWith('pk.');
@@ -222,7 +222,7 @@ function MapView({ artists, myProfile, onOpen }) {
           )}
         </Map>
         <div style={{ position:'absolute', bottom:12, left:12, background:C.card+'ee', border:'1px solid '+C.border, borderRadius:20, padding:'4px 11px', fontSize:11, color:C.muted, backdropFilter:'blur(8px)', pointerEvents:'none' }}>
-          {withCoords.length} profils sur la carte
+          {withCoords?.length} profils sur la carte
         </div>
       </div>
       <div style={{ display:'flex', gap:14, marginTop:8, justifyContent:'center' }}>
@@ -297,7 +297,7 @@ function ProfileModal({ a, myId, onClose, onChat, onInvite }) {
         {a.bio&&<p style={{color:C.muted,fontSize:13,lineHeight:1.6,marginBottom:10}}>{a.bio}</p>}
         {a.fee&&<div style={{color:C.amber,fontSize:12,marginBottom:8}}>💰 {a.fee}</div>}
         {a.rating>0&&<div style={{marginBottom:10}}><Stars r={a.rating}/> <span style={{color:C.dim,fontSize:11}}>({a.rating_count} avis)</span></div>}
-        {a.links&&a.links.length>0&&<div style={{marginBottom:14}}>{a.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:4,marginBottom:4,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 7px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
+        {a.links&&a.links?.length>0&&<div style={{marginBottom:14}}>{a.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:4,marginBottom:4,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 7px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
         {!isMe&&<div style={{display:'flex',gap:8}}>
           <Btn onClick={()=>{onChat(a);onClose();}}>💬 Contacter</Btn>
           <Btn v="secondary" onClick={()=>{onInvite(a);onClose();}}>🗺️ Inviter tournée</Btn>
@@ -416,7 +416,7 @@ function AIPanel({ profiles, myProfile, onLaunchTour }) {
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12}}>
           {matched.map(a=><ProfileCard key={a.id} a={a} myId={myProfile.id} compact/>)}
-          {matched.length===0&&<div style={{color:C.dim,fontSize:13,gridColumn:'1/-1',textAlign:'center',padding:'20px 0'}}>Aucun profil correspondant.</div>}
+          {matched?.length===0&&<div style={{color:C.dim,fontSize:13,gridColumn:'1/-1',textAlign:'center',padding:'20px 0'}}>Aucun profil correspondant.</div>}
         </div>
       </div>}
       {tourPlan&&<TourPlanCard plan={tourPlan} profiles={profiles} onLaunch={()=>onLaunchTour(tourPlan)}/>}
@@ -434,7 +434,7 @@ function TourPlanCard({ plan, profiles, onLaunch }) {
         <span style={{fontSize:20}}>🗺️</span>
         <div style={{flex:1}}>
           <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700,color:C.cream}}>{plan.title}</div>
-          <div style={{color:C.muted,fontSize:11,marginTop:1}}>{plan.stops&&plan.stops.length} étapes · {plan.totalDays} jours{plan.estimatedBudget&&' · '+plan.estimatedBudget}</div>
+          <div style={{color:C.muted,fontSize:11,marginTop:1}}>{plan.stops&&plan.stops?.length} étapes · {plan.totalDays} jours{plan.estimatedBudget&&' · '+plan.estimatedBudget}</div>
         </div>
         <button onClick={()=>setExp(e=>!e)} style={{background:'none',border:'none',color:C.muted,cursor:'pointer',fontSize:14}}>{exp?'▲':'▼'}</button>
       </div>
@@ -584,9 +584,9 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
   return (
     <div className='fade-in' style={{display:'grid',gridTemplateColumns:'270px 1fr',gap:14,minHeight:400}}>
       <div>
-        {pendingInvites.length>0&&(
+        {pendingInvites?.length>0&&(
           <div style={{background:C.orange+'11',border:'1px solid '+C.orange+'33',borderRadius:9,padding:10,marginBottom:10}}>
-            <div style={{fontSize:11,color:C.orange,fontWeight:600,marginBottom:6}}>🗺️ {pendingInvites.length} invitation(s) en attente</div>
+            <div style={{fontSize:11,color:C.orange,fontWeight:600,marginBottom:6}}>🗺️ {pendingInvites?.length} invitation(s) en attente</div>
             {pendingInvites.map(inv=>{
               const org=getProfile(inv.organizer_id);
               return <div key={inv.id} style={{background:C.card,border:'1px solid '+C.border,borderRadius:8,padding:10,marginBottom:6}}>
@@ -617,7 +617,7 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
             </div>
           </div>;
         })}
-        {messages.length===0&&pendingInvites.length===0&&<div style={{color:C.dim,fontSize:13,textAlign:'center',padding:'24px 0'}}>Aucun message</div>}
+        {messages?.length===0&&pendingInvites?.length===0&&<div style={{color:C.dim,fontSize:13,textAlign:'center',padding:'24px 0'}}>Aucun message</div>}
       </div>
       <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:11,padding:20}}>
         {!sel?<div style={{color:C.dim,textAlign:'center',paddingTop:50,fontSize:13}}>Sélectionnez un message</div>:(
@@ -647,7 +647,7 @@ function PromoModule({ myProfile, isSubscribed }) {
   const [step, setStep] = useState('list');
   const [ev, setEv] = useState({ title:'', date:'', venue:'', city:'', genre:'', desc:'', visual:'🎷', budget:89 });
   const [pl, setPl] = useState({ stagemap:true, meta:false, google:false, tiktok:false, spotify:false });
-  const totalBudget = Object.entries(pl).filter(([k,v])=>v&&k!=='stagemap').length*30+ev.budget;
+  const totalBudget = Object.entries(pl).filter(([k,v])=>v&&k!=='stagemap')?.length*30+ev.budget;
 
   const launch = async () => {
     try { await startSubscription(pkg.id, myProfile.id); }
@@ -812,13 +812,13 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
         </div>
         {profile.bio&&<p style={{color:C.muted,fontSize:13,lineHeight:1.6,marginBottom:10}}>{profile.bio}</p>}
         {profile.fee&&<div style={{color:C.amber,fontSize:13,marginBottom:8}}>💰 {profile.fee}</div>}
-        {profile.links&&profile.links.length>0&&<div>{profile.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:5,marginBottom:5,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 8px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
+        {profile.links&&profile.links?.length>0&&<div>{profile.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:5,marginBottom:5,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 8px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
         <div style={{marginTop:12,background:C.orange+'11',border:'1px solid '+C.orange+'33',borderRadius:8,padding:10,fontSize:12,color:C.muted}}>
           ✦ Votre profil est <strong style={{color:C.green}}>visible sur la carte</strong> et dans le répertoire.
         </div>
       </div>
 
-      {userProfiles && userProfiles.length > 1 && (
+      {userProfiles && userProfiles?.length > 1 && (
         <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:12,padding:18,marginBottom:16}}>
           <div style={{fontWeight:700,color:C.text,marginBottom:12,fontSize:13}}>Mes autres profils</div>
           {userProfiles.filter(p=>p.id!==profile.id).map(p=>(
@@ -910,7 +910,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
   const openChat = (p) => { setChatPartner(p); setInviteTarget(null); };
   const openInvite = (p) => { setInviteTarget(p); setChatPartner(null); };
 
-  const unread = messages.filter(m=>!m.read&&m.to_id===user?.id).length;
+  const unread = messages.filter(m=>!m.read&&m.to_id===user?.id)?.length;
 
   const filtered = profiles.filter(a =>
     (filter === 'all' || a.type === filter) &&
@@ -951,7 +951,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
         {profile && (
           <ProfileSwitcher
             profile={profile}
-            userProfiles={userProfiles && userProfiles.length > 0 ? userProfiles : [profile]}
+            userProfiles={userProfiles && userProfiles?.length > 0 ? userProfiles : [profile]}
             onSwitch={handleSwitchProfile}
             onAdd={handleAddProfile}
             onLogout={handleLogout}
@@ -968,7 +968,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
             </button>
           ))}
           <span style={{marginLeft:'auto',color:C.dim,fontSize:11}}>
-            {loadingProfiles?'Chargement...':(filtered.length+' profils')}
+            {loadingProfiles?'Chargement...':(filtered?.length+' profils')}
           </span>
         </div>
       )}
@@ -979,7 +979,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
           <div className='fade-in' style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
             {loadingProfiles&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
             {!loadingProfiles&&filtered.map(a=><ProfileCard key={a.id} a={a} myId={profile?.id} onOpen={setProfileModal}/>)}
-            {!loadingProfiles&&filtered.length===0&&<div style={{gridColumn:'1/-1',color:C.dim,textAlign:'center',padding:'30px 0'}}>Aucun profil trouvé</div>}
+            {!loadingProfiles&&filtered?.length===0&&<div style={{gridColumn:'1/-1',color:C.dim,textAlign:'center',padding:'30px 0'}}>Aucun profil trouvé</div>}
           </div>
         )}
         {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={plan=>{}}/>}
