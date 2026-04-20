@@ -393,7 +393,7 @@ function AIPanel({ profiles, myProfile, onLaunchTour }) {
         <span style={{fontSize:28}}>🤖</span>
         <div>
           <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>Recherche et Planification IA</h2>
-          <p style={{color:C.muted,fontSize:12,marginTop:2}}>Décrivez en langage naturel — l'IA cherche parmi les {profiles.length} vrais profils</p>
+          <p style={{color:C.muted,fontSize:12,marginTop:2}}>Décrivez en langage naturel — l'IA cherche parmi les {profiles?.length || 0} vrais profils
         </div>
       </div>
       <div style={{display:'flex',gap:7,marginBottom:10}}>
@@ -854,8 +854,7 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
 ═══════════════════════════════════ */
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfiles, switchProfile } = useStore();
-
+const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfiles = [], switchProfile } = useStore();
   const [profiles, setLocalProfiles] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
