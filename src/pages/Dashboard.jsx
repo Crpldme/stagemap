@@ -898,10 +898,11 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
   }, [user]);
 
   const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
+  try { await signOut(); } catch(e) {}
+  localStorage.clear();
+  sessionStorage.clear();
+  navigate('/auth');
+}
   const handleAddProfile = () => navigate('/onboard');
   const handleSwitchProfile = (profileId) => {
     switchProfile(profileId);
