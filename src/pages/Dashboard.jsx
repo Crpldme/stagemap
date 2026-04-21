@@ -895,6 +895,10 @@ useEffect(() => { if (user) loadProfiles(); }, [filter, user]);
     getMyCalendar(user.id).then(setCalEntries);
   }, [user]);
 
+  useEffect(() => { 
+  if (user) loadProfiles(); 
+  }, [user]);
+  
   const handleLogout = async () => {
   try { await signOut(); } catch(e) {}
   localStorage.clear();
