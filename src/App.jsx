@@ -12,8 +12,9 @@ import Dashboard   from './pages/Dashboard';
 const GF = `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');`;
 
 function RequireAuth({ children }) {
-  const { session, profile } = useStore();
+  const { session, profile, user } = useStore();
   if (!session) return <Navigate to="/auth" replace />;
+  if (session && !user) return <div style={{background:'#140c00',minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#f0d8a8'}}>Chargement...</div>;
   if (!profile) return <Navigate to="/onboard" replace />;
   return children;
 }
