@@ -867,7 +867,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
   const isSubscribed = checkSubscription(profile);
-  const loadProfiles = useCallback(async () => {
+const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
     try {
       const data = await getAllProfiles({ search: search || undefined, type: filter !== 'all' ? filter : undefined });
@@ -875,11 +875,9 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
       setProfiles(data);
     } catch(e) { toast.error('Erreur chargement: '+e.message); }
     setLoadingProfiles(false);
-  }, [search, filter]);
-
-useEffect(() => { loadProfiles(); }, [filter, loadProfiles]);
-useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search, loadProfiles]);  const handleLogout = async () => {
-  try { await signOut(); } catch(e) {}
+  }, []); // eslint-disable-line// 
+useEffect(() => { loadProfiles(); }, [filter]);
+useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);  try { await signOut(); } catch(e) {}
   localStorage.clear();
   sessionStorage.clear();
   navigate('/auth');
