@@ -492,8 +492,7 @@ function ProfileCard({ a, myId, compact, onOpen }) {
 
 /* ── Invitation Modal ── */
 function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
-  const [form, setForm] = useState({ tour_title:'', city:invitee.region||'', date:'', role:'headliner', note:'', cal_visibility:'private' });
-  const [legalOk, setLegalOk] = useState(false);
+  const [form, setForm] = useState({ tour_title:'Invitation à participer', city:invitee.region||'', date:'', role:'headliner', note:'', cal_visibility:'private' });  const [legalOk, setLegalOk] = useState(false);
   const [sig, setSig] = useState('');
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
