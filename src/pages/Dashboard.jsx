@@ -492,8 +492,7 @@ function ProfileCard({ a, myId, compact, onOpen }) {
 
 /* ── Invitation Modal ── */
 function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
-  const [form, setForm] = useState({ tour_title:'Invitation à participer', city:invitee.region||'', date:'', role:'headliner', note:'', cal_visibility:'private' });  const [legalOk, setLegalOk] = useState(false);
-  const [sig, setSig] = useState('');
+  const [form, setForm] = useState({ tour_title:'Invitation à participer', city:invitee.region||'', date:'', role:'headliner', note:'', cal_visibility:'private' });  const [sig, setSig] = useState('');
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
@@ -501,8 +500,8 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
   const send = async () => {
     setLoading(true);
     try {
-      const inv = await createInvitation({ tour_title:form.tour_title||'Invitation', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
-await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.id, 'Invitation de tournée : '+form.tour_title, form.note||'Vous avez reçu une invitation de tournée.', true, inv.id);      toast.success('Invitation envoyée à '+invitee.name+' !');
+  const inv = await createInvitation({ tour_title:form.tour_title||'Invitation à participer', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
+  await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.id, 'Invitation de tournée : '+form.tour_title, form.note||'Vous avez reçu une invitation de tournée.', true, inv.id);      toast.success('Invitation envoyée à '+invitee.name+' !');
       onSent();
 } catch(e) { toast.error('Erreur: '+JSON.stringify(e)); }    setLoading(false);
   };
