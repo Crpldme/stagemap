@@ -575,8 +575,7 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
     setInvLoading(l=>({...l,[invId]:false}));
   };
 
-  const getProfile = (id) => profiles.find(p=>p.id===id)||{name:'Utilisateur',avatar:'👤'};
-  const pendingInvites = invitations.filter(i=>i.invitee_id===myId&&i.status==='pending');
+  const getProfile = (id) => profiles.find(p=>p.id===id||p.user_id===id)||{name:'Utilisateur',avatar:'👤'};  const pendingInvites = invitations.filter(i=>i.invitee_id===myId&&i.status==='pending');
 
   return (
     <div className='fade-in' style={{display:'grid',gridTemplateColumns:'270px 1fr',gap:14,minHeight:400}}>
