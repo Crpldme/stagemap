@@ -877,10 +877,8 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
     setLoadingProfiles(false);
   }, [search, filter]);
 
-useEffect(() => { loadProfiles(); }, [filter]);
-useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);
-
-  const handleLogout = async () => {
+useEffect(() => { loadProfiles(); }, [filter, loadProfiles]);
+useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search, loadProfiles]);  const handleLogout = async () => {
   try { await signOut(); } catch(e) {}
   localStorage.clear();
   sessionStorage.clear();
