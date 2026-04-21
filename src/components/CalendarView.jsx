@@ -246,6 +246,14 @@ function DayPanel({ date, events, onEdit, onClose, onNew }) {
     const end   = new Date(e.date_end || e.date_start);
     return date >= new Date(start.toDateString()) && date <= new Date(end.toDateString());
   });
+
+  const confirmBooking = async (e) => {
+    try {
+      await supabase.from('calendar_entries').update({ event_type: 'event' }).eq('id', e.id);
+      toast.success('Événement confirmé ✓');
+    } catch(err) { toast.error(err.message); }
+  };
+
   return (
     <div style={{ background: C.bg2, border: '1px solid '+C.border, borderRadius: 12, padding: 16, minWidth: 260 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -271,6 +279,11 @@ function DayPanel({ date, events, onEdit, onClose, onNew }) {
               {e.visibility === 'public' ? '🌐' : e.visibility === 'shared' ? '🔗' : '🔒'}
             </span>
           </div>
+          {e.event_type === 'booking' && (
+            <div style={{ marginTop: 8 }} onClick={ev => ev.stopPropagation()}>
+              <Btn sz='sm' v='success' onClick={() => confirmBooking(e)}>✓ Confirmer comme événement officiel</Btn>
+            </div>
+          )}
         </div>
       ))}
       <Btn onClick={onNew} full sz='sm' style={{ marginTop: 4 }}>+ Ajouter ici</Btn>
