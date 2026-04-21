@@ -882,23 +882,14 @@ useEffect(() => {
     setLoadingProfiles(false);
   }, [search, filter]);
 
-useEffect(() => { if (user) loadProfiles(); }, [filter, user]);
-  useEffect(() => {
-    if (!user) return;
-    getMessages(user.id).then(setMessages);
-    const sub = supabase.channel('messages_'+user.id)
-      .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:'to_id=eq.'+user.id }, () => {
-        getMessages(user.id).then(setMessages);
-        toast('📬 Nouveau message !');
-      }).subscribe();
-    return () => supabase.removeChannel(sub);
-  }, [user]);
+useEffect(() => {
+  loadProfiles();
+}, [filter]);
 
-  useEffect(() => {
-    if (!user) return;
-    getMyCalendar(user.id).then(setCalEntries);
-  }, [user]);
-
+useEffect(() => {
+  const t = setTimeout(loadProfiles, 400);
+  return () => clearTimeout(t);
+}, [search]);
 
   const handleLogout = async () => {
   try { await signOut(); } catch(e) {}
