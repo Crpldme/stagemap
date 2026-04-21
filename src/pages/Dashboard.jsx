@@ -502,8 +502,7 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
     setLoading(true);
     try {
   const inv = await createInvitation({ tour_title:form.tour_title||'Invitation à participer', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
-  await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.id, 'Invitation de tournée : '+form.tour_title, form.note||'Vous avez reçu une invitation de tournée.', true, inv.id);      toast.success('Invitation envoyée à '+invitee.name+' !');
-      onSent();
+    await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.id, form.tour_title, form.note||'Vous avez reçu une invitation à participer.', true, inv.id);      onSent();
 } catch(e) { toast.error('Erreur: '+JSON.stringify(e)); }    setLoading(false);
   };
 
@@ -513,7 +512,7 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
         <div style={{padding:'15px 22px',borderBottom:'1px solid '+C.border,background:C.card,display:'flex',alignItems:'center',gap:10}}>
           <span style={{fontSize:20}}>🗺️</span>
           <div style={{flex:1}}>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:C.cream}}>Inviter à une tournée</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:C.cream}}>Inviter à participer</div>
             <div style={{color:C.muted,fontSize:11}}>{invitee.avatar} {invitee.name}</div>
           </div>
           <button onClick={onClose} style={{background:'none',border:'none',color:C.dim,cursor:'pointer',fontSize:16}}>✕</button>
