@@ -855,7 +855,7 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
 ═══════════════════════════════════ */
 export default function Dashboard() {
   const navigate = useNavigate();
-const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfiles = [], switchProfile } = useStore();
+  const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfiles = [], switchProfile } = useStore();
   const [profiles, setLocalProfiles] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -867,15 +867,24 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
   const isSubscribed = checkSubscription(profile);
-const loadProfiles = useCallback(async () => {
+
+  const searchRef = useRef(search);
+  const filterRef = useRef(filter);
+  searchRef.current = search;
+  filterRef.current = filter;
+
+  const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
     try {
-      const data = await getAllProfiles({ search: search || undefined, type: filter !== 'all' ? filter : undefined });
+      const data = await getAllProfiles({
+        search: searchRef.current || undefined,
+        type: filterRef.current !== 'all' ? filterRef.current : undefined
+      });
       setLocalProfiles(data);
       setProfiles(data);
     } catch(e) { toast.error('Erreur chargement: '+e.message); }
     setLoadingProfiles(false);
-}, []); // eslint-disable-line
+  }, []);
 
   useEffect(() => { loadProfiles(); }, [filter]);
   useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);
