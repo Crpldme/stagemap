@@ -920,7 +920,7 @@ useEffect(() => { if (user) loadProfiles(); }, [filter, user]);
     (filter === 'all' || a.type === filter) &&
     (!search || (a.name+a.genre+(a.region||'')+(a.country||'')).toLowerCase().includes(search.toLowerCase()))
   );
-
+console.log('filtered', filtered.length, 'profiles', profiles.length);
   const TABS = [
     { k:'map',    i:'🗺️',  l:'Carte' },
     { k:'list',   i:'📋',  l:'Répertoire' },

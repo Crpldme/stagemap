@@ -113,6 +113,7 @@ export const deleteProfile = async (profileId) => {
 };
 
 export const getAllProfiles = async (filters = {}) => {
+  console.log('getAllProfiles called', filters);
   let query = supabase.from('profiles').select('*');
   if (filters.type) query = query.eq('type', filters.type);
   if (filters.region) query = query.eq('region', filters.region);
@@ -124,6 +125,10 @@ export const getAllProfiles = async (filters = {}) => {
   const { data, error } = await query;
   if (error) throw error;
   return data || [];
+
+
+
+
 };
 
 // ── Message helpers ──────────────────────────────────────────
@@ -144,6 +149,7 @@ export const getMessages = async (userId) => {
     .or(allIds.map(id => `from_id.eq.${id},to_id.eq.${id}`).join(','))
     .order('created_at', { ascending: false });
   
+  console.log('getAllProfiles result', data?.length, error);
   if (error) throw error;
   return data || [];
 };
