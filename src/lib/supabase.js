@@ -203,7 +203,7 @@ export const createInvitation = async (inv) => {
 export const getMyInvitations = async (userId) => {
   const { data, error } = await supabase
     .from('invitations')
-    .select('*, organizer:organizer_id(id,name,avatar), invitee:invitee_id(id,name,avatar)')
+    .select('*')
     .or(`organizer_id.eq.${userId},invitee_id.eq.${userId}`)
     .order('created_at', { ascending: false });
   if (error) throw error;
