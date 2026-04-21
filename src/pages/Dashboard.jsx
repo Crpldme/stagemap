@@ -502,8 +502,7 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
     setLoading(true);
     try {
   const inv = await createInvitation({ tour_title:form.tour_title||'Invitation à participer', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
-    await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.id, form.tour_title, form.note||'Vous avez reçu une invitation à participer.', true, inv.id);      onSent();
-} catch(e) { toast.error('Erreur: '+JSON.stringify(e)); }    setLoading(false);
+    `${form.note ? form.note + '\n\n' : ''}📅 Date : ${form.date || 'À confirmer'}\n📍 Lieu : ${form.city || 'À confirmer'}\n🎭 Rôle : ${form.role}`} catch(e) { toast.error('Erreur: '+JSON.stringify(e)); }    setLoading(false);
   };
 
   return (
@@ -985,8 +984,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
         )}
         {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={plan=>{}}/>}
         {tab==='inbox'&&<InboxView messages={messages} myId={user?.id} profiles={profiles} onChat={openChat} onRefresh={()=>getMessages(user.id).then(setMessages)}/>}
-        {tab==='cal'&&<CalendarView myId={user?.id} profiles={profiles} onInvite={(p) => { setInviteTarget(p); }} />}        {tab==='promo'&&<PromoModule myProfile={profile} isSubscribed={isSubscribed}/>}
-        {tab==='me'&&profile&&<MyProfileTab profile={profile} userProfiles={userProfiles||[profile]} setProfile={setProfile} user={user} onLogout={handleLogout} onAddProfile={handleAddProfile} isSubscribed={isSubscribed}/>}
+        {tab==='cal'&&<CalendarView myId={user?.id} profiles={profiles} onInvite={(p, date) => { setInviteTarget(p); }} />}        {tab==='me'&&profile&&<MyProfileTab profile={profile} userProfiles={userProfiles||[profile]} setProfile={setProfile} user={user} onLogout={handleLogout} onAddProfile={handleAddProfile} isSubscribed={isSubscribed}/>}
       </main>
 
       <footer style={{borderTop:'1px solid '+C.border,padding:'12px 20px',display:'flex',justifyContent:'space-between',color:C.dim,fontSize:11}}>
