@@ -728,7 +728,8 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
   const { updateUserProfile } = useStore();
   const [editing, setEditing] = useState(false);
   const [p, setP] = useState({ ...profile, links: Array.isArray(profile.links)?profile.links.join(', '):profile.links||'' });
-  const [loading, setLoading] = useState(false);
+  const [legalOk, setLegalOk] = useState(false);
+  const [sig, setSig] = useState('');
   const set = (k,v) => setP(prev=>({...prev,[k]:v}));
 
   const save = async () => {
