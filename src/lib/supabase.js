@@ -201,15 +201,25 @@ export const createInvitation = async (inv) => {
 };
 
 export const getMyInvitations = async (userId) => {
+  // Récupère tous les profile IDs de cet utilisateur
+  const { data: userProfiles } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('user_id', userId);
+  
+  const profileIds = userProfiles ? userProfiles.map(p => p.id) : [];
+  const allIds = [...new Set([userId, ...profileIds])];
+  
+  const orFilter = allIds.map(id => `organizer_id.eq.${id},invitee_id.eq.${id}`).join(',');
+  
   const { data, error } = await supabase
     .from('invitations')
     .select('*')
-    .or(`organizer_id.eq.${userId},invitee_id.eq.${userId}`)
+    .or(orFilter)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
 };
-
 export const respondToInvitation = async (invId, status, signature = null) => {
   const update = { status };
   if (signature) { update.invitee_signature = signature; update.legal_accepted_by_invitee = true; }
