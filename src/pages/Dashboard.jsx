@@ -875,13 +875,17 @@ const loadProfiles = useCallback(async () => {
       setProfiles(data);
     } catch(e) { toast.error('Erreur chargement: '+e.message); }
     setLoadingProfiles(false);
-  }, []); // eslint-disable-line// 
-useEffect(() => { loadProfiles(); }, [filter]);
-useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);  try { await signOut(); } catch(e) {}
-  localStorage.clear();
-  sessionStorage.clear();
-  navigate('/auth');
-}
+}, []); // eslint-disable-line
+
+  useEffect(() => { loadProfiles(); }, [filter]);
+  useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);
+
+  const handleLogout = async () => {
+    try { await signOut(); } catch(e) {}
+    localStorage.clear();
+    sessionStorage.clear();
+    navigate('/auth');
+  };
   const handleAddProfile = () => navigate('/onboard');
   const handleSwitchProfile = (profileId) => {
     switchProfile(profileId);
