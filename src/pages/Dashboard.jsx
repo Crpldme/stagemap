@@ -498,13 +498,15 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
   const [loading, setLoading] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
-  const send = async () => {
+const send = async () => {
     setLoading(true);
     try {
-  const inv = await createInvitation({ tour_title:form.tour_title||'Invitation à participer', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
-    `${form.note ? form.note + '\n\n' : ''}📅 Date : ${form.date || 'À confirmer'}\n📍 Lieu : ${form.city || 'À confirmer'}\n🎭 Rôle : ${form.role}`} catch(e) { toast.error('Erreur: '+JSON.stringify(e)); }    setLoading(false);
+      const inv = await createInvitation({ tour_title:form.tour_title||'Invitation à participer', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
+await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.id, form.tour_title, (form.note ? form.note + '\n\n' : '') + '📅 Date : ' + (form.date || 'À confirmer') + '\n📍 Lieu : ' + (form.city || 'À confirmer') + '\n🎭 Rôle : ' + form.role, true, inv.id);      toast.success('Invitation envoyée à '+invitee.name+' !');
+      onSent();
+    } catch(e) { toast.error('Erreur: '+e.message); }
+    setLoading(false);
   };
-
   return (
     <div style={{position:'fixed',inset:0,background:'#00000090',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:C.bg2,border:'1px solid '+C.border,borderRadius:16,maxWidth:520,width:'100%',maxHeight:'90vh',overflow:'hidden',display:'flex',flexDirection:'column',boxShadow:'0 40px 100px #00000090'}}>
