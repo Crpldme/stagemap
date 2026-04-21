@@ -104,35 +104,16 @@ export const createProfile = async (profile) => {
   return data;
 };
 
-export const deleteProfile = async (profileId) => {
-  const { error } = await supabase
-    .from('profiles')
-    .delete()
-    .eq('id', profileId);
-  if (error) throw error;
-};
-
 export const getAllProfiles = async (filters = {}) => {
-  let attempts = 0;
-  while (attempts < 3) {
-    try {
-      let query = supabase.from('profiles').select('*');
-      if (filters.type) query = query.eq('type', filters.type);
-      if (filters.search) query = query.or(
-        `name.ilike.%${filters.search}%,genre.ilike.%${filters.search}%,region.ilike.%${filters.search}%,bio.ilike.%${filters.search}%`
-      );
-      query = query.order('created_at', { ascending: false });
-      const { data, error } = await query;
-      if (error) throw error;
-      if (data && data.length > 0) return data;
-      attempts++;
-      await new Promise(r => setTimeout(r, 500));
-    } catch(e) {
-      attempts++;
-      await new Promise(r => setTimeout(r, 500));
-    }
-  }
-  return [];
+  let query = supabase.from('profiles').select('*');
+  if (filters.type) query = query.eq('type', filters.type);
+  if (filters.search) query = query.or(
+    `name.ilike.%${filters.search}%,genre.ilike.%${filters.search}%,region.ilike.%${filters.search}%,bio.ilike.%${filters.search}%`
+  );
+  query = query.order('created_at', { ascending: false });
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 };
 
 // ── Message helpers ──────────────────────────────────────────
