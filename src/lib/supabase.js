@@ -213,6 +213,7 @@ export const getMyInvitations = async (userId) => {
 export const respondToInvitation = async (invId, status, signature = null) => {
   const update = { status };
   if (signature) { update.invitee_signature = signature; update.legal_accepted_by_invitee = true; }
+  
   const { data, error } = await supabase
     .from('invitations')
     .update(update)
@@ -220,9 +221,23 @@ export const respondToInvitation = async (invId, status, signature = null) => {
     .select()
     .single();
   if (error) throw error;
+
+  if (status === 'accepted' && data) {
+    const event = {
+      title: data.tour_title || 'Événement confirmé',
+      event_type: 'booking',
+      date_start: data.date ? data.date + 'T00:00' : new Date().toISOString().split('T')[0] + 'T00:00',
+      date_end: data.date ? data.date + 'T23:59' : new Date().toISOString().split('T')[0] + 'T23:59',
+      visibility: 'private',
+      location: data.city || '',
+      is_availability: false,
+    };
+    await supabase.from('calendar_entries').insert({ ...event, user_id: data.organizer_id });
+    await supabase.from('calendar_entries').insert({ ...event, user_id: data.invitee_id });
+  }
+
   return data;
 };
-
 // ── Campaign helpers ─────────────────────────────────────────
 
 export const createCampaign = async (campaign) => {
