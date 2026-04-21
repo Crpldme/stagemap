@@ -978,8 +978,8 @@ useEffect(() => { loadProfiles(); }, [filter, loadProfiles]);  useEffect(() => {
         {tab==='map'&&<MapView artists={filtered} myProfile={profile} onOpen={setProfileModal}/>}
         {tab==='list'&&(
           <div className='fade-in' style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
-            {loadingProfiles&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
-            {!loadingProfiles&&filtered.map(a=><ProfileCard key={a.id} a={a} myId={profile?.id} onOpen={setProfileModal}/>)}
+            {loadingProfiles&&profiles.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
+            {filtered.map(a=><ProfileCard key={a.id} a={a} myId={profile?.id} onOpen={setProfileModal}/>)}
             {!loadingProfiles&&filtered?.length===0&&<div style={{gridColumn:'1/-1',color:C.dim,textAlign:'center',padding:'30px 0'}}>Aucun profil trouvé</div>}
           </div>
         )}
