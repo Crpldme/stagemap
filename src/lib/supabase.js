@@ -141,7 +141,7 @@ export const getMessages = async (userId) => {
   
   const { data, error } = await supabase
     .from('messages')
-    .select('*, from:from_id(id,name,avatar), to:to_id(id,name,avatar)')
+.select('*')
     .or(allIds.map(id => `from_id.eq.${id},to_id.eq.${id}`).join(','))
     .order('created_at', { ascending: false });
   

@@ -505,8 +505,7 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
       const inv = await createInvitation({ tour_title:form.tour_title||'Invitation', organizer_id:organizer.id, invitee_id:invitee.id, city:form.city, date:form.date||null, role:form.role, note:form.note, status:'pending', legal_accepted_by_organizer:true, organizer_signature:sig, cal_visibility:form.cal_visibility });
 await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.id, 'Invitation de tournée : '+form.tour_title, form.note||'Vous avez reçu une invitation de tournée.', true, inv.id);      toast.success('Invitation envoyée à '+invitee.name+' !');
       onSent();
-    } catch(e) { toast.error('Erreur: '+e.message); }
-    setLoading(false);
+} catch(e) { toast.error('Erreur: '+JSON.stringify(e)); }    setLoading(false);
   };
 
   return (
@@ -602,8 +601,7 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
           </div>
         )}
         {messages.map(m=>{
-          const other=getProfile(m.from_id===myId?m.to_id:m.from_id);
-          return <div key={m.id} onClick={()=>{setSel(m);if(!m.read&&m.to_id===myId)markMessageRead(m.id);}}
+const other=getProfile(m.from_id===myId?m.to_id:m.from_id);          return <div key={m.id} onClick={()=>{setSel(m);if(!m.read&&m.to_id===myId)markMessageRead(m.id);}}
             style={{background:sel?.id===m.id?C.cardHov:C.card,border:'1px solid '+(sel?.id===m.id?C.borderHov:C.border),borderLeft:'3px solid '+(m.read?C.border:C.orange),borderRadius:9,padding:11,marginBottom:6,cursor:'pointer',transition:'all .15s'}}>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <span style={{fontSize:18}}>{other.avatar||'👤'}</span>
@@ -630,7 +628,12 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
               </div>
             </div>
             <div style={{color:C.muted,fontSize:13,lineHeight:1.7,marginBottom:14}}>{sel.body}</div>
-            <Btn v='secondary' sz='sm' onClick={()=>onChat(getProfile(sel.from_id===myId?sel.to_id:sel.from_id))}>💬 Répondre par chat</Btn>
+            <Btn v='secondary' sz='sm' onClick={()=>{
+              const otherId = sel.from_id===myId ? sel.to_id : sel.from_id;
+              const p = profiles.find(pr => pr.id===otherId || pr.user_id===otherId);
+              if(p) onChat(p);
+              else toast.error('Profil introuvable');
+            }}>💬 Répondre par chat</Btn>
           </div>
         )}
       </div>
