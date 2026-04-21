@@ -630,8 +630,7 @@ export function CalendarView({ myId, profiles = [], onInvite }) {  const today =
           myId={myId}
           otherProfile={compareProfile}
           onClose={() => setCompareProfile(null)}
-          onInvite={(profile, date) => { setCompareProfile(null); }}
-        />
+onInvite={(profile, date) => { setCompareProfile(null); if(onInvite) onInvite(profile, date); }}        />
       )}
 
       {(formDate || editEvent) && (
