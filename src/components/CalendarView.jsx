@@ -264,9 +264,10 @@ const confirmBooking = async (e) => {
       </div>
       {dayEvents.length === 0 && <div style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>Aucun événement ce jour</div>}
       {dayEvents.map(e => (
-        <div key={e.id} onClick={() => onEdit(e)}
-        style={{ background: e.visibility === 'public' ? C.green+'11' : C.card, border: '1px solid '+(e.visibility === 'public' ? C.green : C.border), borderLeft: '3px solid '+getEventColor(e.event_type), borderRadius: 8, padding: '8px 10px', marginBottom: 7, cursor: 'pointer' }}          <div style={{ fontWeight: 600, fontSize: 12, color: C.text, marginBottom: 2 }}>{e.title}</div>
-          {e.time_start && <div style={{ fontSize: 11, color: C.muted }}>🕐 {e.time_start} – {e.time_end}</div>}
+<div key={e.id} onClick={() => onEdit(e)}
+          style={{ background: e.visibility === 'public' ? C.green+'11' : C.card, border: '1px solid '+(e.visibility === 'public' ? C.green : C.border), borderLeft: '3px solid '+getEventColor(e.event_type), borderRadius: 8, padding: '8px 10px', marginBottom: 7, cursor: 'pointer' }}
+          onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
+          onMouseLeave={ev => ev.currentTarget.style.background = e.visibility === 'public' ? C.green+'11' : C.card}>          {e.time_start && <div style={{ fontSize: 11, color: C.muted }}>🕐 {e.time_start} – {e.time_end}</div>}
           {e.location && <div style={{ fontSize: 11, color: C.dim }}>📍 {e.location}</div>}
           <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
             <span style={{ background: getEventColor(e.event_type)+'22', color: getEventColor(e.event_type), borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>
