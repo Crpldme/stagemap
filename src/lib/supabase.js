@@ -135,10 +135,6 @@ export const getAllProfiles = async (filters = {}) => {
   return [];
 };
 
-
-
-};
-
 // ── Message helpers ──────────────────────────────────────────
 
 export const getMessages = async (userId) => {
