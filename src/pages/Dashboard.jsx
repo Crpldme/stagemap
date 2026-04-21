@@ -559,13 +559,14 @@ await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.
 }
 
 /* ── Inbox ── */
-function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
+function InboxView({ messages, myId, profileIds, profiles, onChat, onRefresh }) {
   const [sel, setSel] = useState(null);
   const [invitations, setInvitations] = useState([]);
   const [invLoading, setInvLoading] = useState({});
 
-  useEffect(() => { getMyInvitations(myId).then(data=>setInvitations(data||[])); }, [myId]);
-
+useEffect(() => { 
+    if(myId) getMyInvitations(myId).then(data=>setInvitations(data||[])); 
+  }, [myId]);
   const respond = async (invId, status) => {
     setInvLoading(l=>({...l,[invId]:true}));
     try {
@@ -576,8 +577,8 @@ function InboxView({ messages, myId, profiles, onChat, onRefresh }) {
     setInvLoading(l=>({...l,[invId]:false}));
   };
 
-  const getProfile = (id) => profiles.find(p=>p.id===id||p.user_id===id)||{name:'Utilisateur',avatar:'👤'};  const pendingInvites = invitations.filter(i=>i.invitee_id===myId&&i.status==='pending');
-
+  const getProfile = (id) => profiles.find(p=>p.id===id||p.user_id===id)||{name:'Utilisateur',avatar:'👤'};  
+  const pendingInvites = invitations.filter(i=>i.status==='pending');
   return (
     <div className='fade-in' style={{display:'grid',gridTemplateColumns:'270px 1fr',gap:14,minHeight:400}}>
       <div>

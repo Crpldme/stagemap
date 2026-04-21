@@ -201,22 +201,30 @@ export const createInvitation = async (inv) => {
 };
 
 export const getMyInvitations = async (userId) => {
-  // Récupère tous les profile IDs de cet utilisateur
+  console.log('getMyInvitations called with userId:', userId);
   const { data: userProfiles } = await supabase
     .from('profiles')
     .select('id')
     .eq('user_id', userId);
   
+  console.log('userProfiles found:', userProfiles);
+  
   const profileIds = userProfiles ? userProfiles.map(p => p.id) : [];
   const allIds = [...new Set([userId, ...profileIds])];
   
+  console.log('allIds:', allIds);
+  
   const orFilter = allIds.map(id => `organizer_id.eq.${id},invitee_id.eq.${id}`).join(',');
+  
+  console.log('orFilter:', orFilter);
   
   const { data, error } = await supabase
     .from('invitations')
     .select('*')
     .or(orFilter)
     .order('created_at', { ascending: false });
+  
+  console.log('invitations found:', data?.length, error);
   if (error) throw error;
   return data || [];
 };
