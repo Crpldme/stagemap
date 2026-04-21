@@ -240,19 +240,19 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
 }
 
 /* ── Day Detail Panel ── */
-function DayPanel({ date, events, onEdit, onClose, onNew }) {
-  const dayEvents = events.filter(e => {
+function DayPanel({ date, events, onEdit, onClose, onNew, onRefresh }) {  const dayEvents = events.filter(e => {
     const start = new Date(e.date_start);
     const end   = new Date(e.date_end || e.date_start);
     return date >= new Date(start.toDateString()) && date <= new Date(end.toDateString());
   });
 
-  const confirmBooking = async (e) => {
-    try {
-      await supabase.from('calendar_entries').update({ event_type: 'event' }).eq('id', e.id);
-      toast.success('Événement confirmé ✓');
-    } catch(err) { toast.error(err.message); }
-  };
+const confirmBooking = async (e) => {
+  try {
+    await supabase.from('calendar_entries').update({ event_type: 'event' }).eq('id', e.id);
+    toast.success('Événement confirmé ✓');
+    if(onRefresh) onRefresh();
+  } catch(err) { toast.error(err.message); }
+};
 
   return (
     <div style={{ background: C.bg2, border: '1px solid '+C.border, borderRadius: 12, padding: 16, minWidth: 260 }}>
@@ -615,10 +615,11 @@ export function CalendarView({ myId, profiles = [], onInvite }) {  const today =
 
         {selectedDate && view === 'month' && (
           <DayPanel date={selectedDate} events={entries}
-            onEdit={e => { setEditEvent(e); setFormDate(null); setSelectedDate(null); }}
-            onClose={() => setSelectedDate(null)}
-            onNew={() => { setFormDate(selectedDate); setEditEvent(null); setSelectedDate(null); }}
-          />
+  onEdit={e => { setEditEvent(e); setFormDate(null); setSelectedDate(null); }}
+  onClose={() => setSelectedDate(null)}
+  onNew={() => { setFormDate(selectedDate); setEditEvent(null); setSelectedDate(null); }}
+  onRefresh={loadEntries}
+/>
         )}
       </div>
 
