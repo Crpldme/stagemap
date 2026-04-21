@@ -867,10 +867,12 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
   const isSubscribed = checkSubscription(profile);
-  useEffect(() => { 
-    loadProfiles(); 
-  }, []);
-  const loadProfiles = useCallback(async () => {
+useEffect(() => {
+  const timer = setTimeout(() => {
+    loadProfiles();
+  }, 1000);
+  return () => clearTimeout(timer);
+}, []);  const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
     try {
       const data = await getAllProfiles({ search: search || undefined, type: filter !== 'all' ? filter : undefined });
