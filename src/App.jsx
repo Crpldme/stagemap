@@ -27,17 +27,16 @@ function RequireNoAuth({ children }) {
 export default function App() {
   const { setSession, setUser, setProfile, setUserProfiles, clearAuth } = useStore();
 
-  const loadUserProfiles = async (user) => {
-    const profiles = await getUserProfiles(user.id);
-    setUserProfiles(profiles);
-    // Active le premier profil par défaut
-    if (profiles.length > 0) {
-      setProfile(profiles[0]);
-    } else {
-      setProfile(null);
-    }
-  };
-
+const loadUserProfiles = async (user) => {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  const profiles = await getUserProfiles(user.id);
+  setUserProfiles(profiles);
+  if (profiles.length > 0) {
+    setProfile(profiles[0]);
+  } else {
+    setProfile(null);
+  }
+};
   useEffect(() => {
     // Inject Google Fonts
     const style = document.createElement('style');
