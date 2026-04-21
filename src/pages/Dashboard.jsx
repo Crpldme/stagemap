@@ -493,6 +493,7 @@ function ProfileCard({ a, myId, compact, onOpen }) {
 /* ── Invitation Modal ── */
 function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
   const [form, setForm] = useState({ tour_title:'Invitation à participer', city:invitee.region||'', date:'', role:'headliner', note:'', cal_visibility:'private' });  const [sig, setSig] = useState('');
+  const [legalOk, setLegalOk] = useState(false);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
@@ -727,8 +728,7 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
   const { updateUserProfile } = useStore();
   const [editing, setEditing] = useState(false);
   const [p, setP] = useState({ ...profile, links: Array.isArray(profile.links)?profile.links.join(', '):profile.links||'' });
-  const [legalOk, setLegalOk] = useState(false);
-  const [sig, setSig] = useState('');
+  const [loading, setLoading] = useState(false);
   const set = (k,v) => setP(prev=>({...prev,[k]:v}));
 
   const save = async () => {
