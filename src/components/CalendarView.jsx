@@ -265,8 +265,7 @@ const confirmBooking = async (e) => {
       {dayEvents.length === 0 && <div style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>Aucun événement ce jour</div>}
       {dayEvents.map(e => (
         <div key={e.id} onClick={() => onEdit(e)}
-          style={{ background: C.card, border: '1px solid '+C.border, borderLeft: '3px solid '+getEventColor(e.event_type), borderRadius: 8, padding: '8px 10px', marginBottom: 7, cursor: 'pointer' }}
-          onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
+          style={{ background: e.visibility === 'public' ? C.green+'11' : C.card, border: '1px solid '+(e.visibility === 'public' ? C.green : C.border), borderLeft: '3px solid '+getEventColor(e.event_type), ...}}          onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
           onMouseLeave={ev => ev.currentTarget.style.background = C.card}>
           <div style={{ fontWeight: 600, fontSize: 12, color: C.text, marginBottom: 2 }}>{e.title}</div>
           {e.time_start && <div style={{ fontSize: 11, color: C.muted }}>🕐 {e.time_start} – {e.time_end}</div>}
