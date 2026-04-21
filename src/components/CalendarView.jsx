@@ -332,8 +332,7 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
       const to   = new Date(year, month + 2, 0).toISOString();
       const [{ data: mine }, { data: theirs }] = await Promise.all([
         supabase.from('calendar_entries').select('*').eq('user_id', myId).gte('date_start', from).lte('date_start', to),
-        supabase.from('calendar_entries').select('*').eq('user_id', otherProfile.id).eq('visibility', 'public').gte('date_start', from).lte('date_start', to),
-      ]);
+        supabase.from('calendar_entries').select('*').eq('user_id', otherProfile.user_id || otherProfile.id).eq('visibility', 'public')      ]);
       setMyEntries(mine || []);
       setOtherEntries(theirs || []);
     } catch (e) { toast.error(e.message); }
