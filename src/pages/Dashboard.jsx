@@ -572,8 +572,8 @@ useEffect(() => {
     try {
       await respondToInvitation(invId, status);
       setInvitations(prev=>prev.map(i=>i.id===invId?{...i,status}:i));
-      toast.success(status==='accepted'?'Invitation acceptée ✓':'Invitation déclinée');
-    } catch(e) { toast.error(e.message); }
+toast.success(status==='accepted'?'Invitation acceptée ✓ — Vérifiez votre agenda !':'Invitation déclinée');
+if (status === 'accepted') setTimeout(() => window.location.reload(), 1500);    } catch(e) { toast.error(e.message); }
     setInvLoading(l=>({...l,[invId]:false}));
   };
 
