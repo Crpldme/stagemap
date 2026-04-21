@@ -113,19 +113,27 @@ export const deleteProfile = async (profileId) => {
 };
 
 export const getAllProfiles = async (filters = {}) => {
-  console.log('getAllProfiles called', filters);
-  let query = supabase.from('profiles').select('*');
-  if (filters.type) query = query.eq('type', filters.type);
-  if (filters.region) query = query.eq('region', filters.region);
-  if (filters.available) query = query.eq('available', true);
-  if (filters.search) query = query.or(
-    `name.ilike.%${filters.search}%,genre.ilike.%${filters.search}%,region.ilike.%${filters.search}%,bio.ilike.%${filters.search}%`
-  );
-  query = query.order('created_at', { ascending: false });
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
-
+  let attempts = 0;
+  while (attempts < 3) {
+    try {
+      let query = supabase.from('profiles').select('*');
+      if (filters.type) query = query.eq('type', filters.type);
+      if (filters.search) query = query.or(
+        `name.ilike.%${filters.search}%,genre.ilike.%${filters.search}%,region.ilike.%${filters.search}%,bio.ilike.%${filters.search}%`
+      );
+      query = query.order('created_at', { ascending: false });
+      const { data, error } = await query;
+      if (error) throw error;
+      if (data && data.length > 0) return data;
+      attempts++;
+      await new Promise(r => setTimeout(r, 500));
+    } catch(e) {
+      attempts++;
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+  return [];
+};
 
 
 
