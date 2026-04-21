@@ -979,8 +979,7 @@ console.log('filtered', filtered.length, 'profiles', profiles.length);
         )}
         {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={plan=>{}}/>}
         {tab==='inbox'&&<InboxView messages={messages} myId={user?.id} profiles={profiles} onChat={openChat} onRefresh={()=>getMessages(user.id).then(setMessages)}/>}
-        {tab==='cal'&&<CalendarView myId={user?.id} profiles={profiles} onInvite={(p, date) => { setInviteTarget(p); }} />}        {tab==='me'&&profile&&<MyProfileTab profile={profile} userProfiles={userProfiles||[profile]} setProfile={setProfile} user={user} onLogout={handleLogout} onAddProfile={handleAddProfile} isSubscribed={isSubscribed}/>}
-      </main>
+        {tab==='cal'&&<CalendarView myId={profile?.id} profiles={profiles} onInvite={(p, date) => { setInviteTarget(p); }} />}      </main>
 
       <footer style={{borderTop:'1px solid '+C.border,padding:'12px 20px',display:'flex',justifyContent:'space-between',color:C.dim,fontSize:11}}>
         <span>© 2026 StageMap — Réseau Scène Global</span>
