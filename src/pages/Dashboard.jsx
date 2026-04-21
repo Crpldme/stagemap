@@ -878,8 +878,7 @@ const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfil
     setLoadingProfiles(false);
   }, [search, filter]);
 
-  useEffect(() => { loadProfiles(); }, [filter]);
-  useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);
+useEffect(() => { loadProfiles(); }, [filter, loadProfiles]);  useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);
 
   useEffect(() => {
     if (!user) return;
