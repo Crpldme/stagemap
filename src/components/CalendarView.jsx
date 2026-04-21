@@ -240,19 +240,20 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
 }
 
 /* ── Day Detail Panel ── */
-function DayPanel({ date, events, onEdit, onClose, onNew, onRefresh }) {  const dayEvents = events.filter(e => {
+function DayPanel({ date, events, onEdit, onClose, onNew, onRefresh }) {
+  const dayEvents = events.filter(e => {
     const start = new Date(e.date_start);
     const end   = new Date(e.date_end || e.date_start);
     return date >= new Date(start.toDateString()) && date <= new Date(end.toDateString());
   });
 
-const confirmBooking = async (e) => {
-  try {
-    await supabase.from('calendar_entries').update({ event_type: 'event' }).eq('id', e.id);
-    toast.success('Événement confirmé ✓');
-    if(onRefresh) onRefresh();
-  } catch(err) { toast.error(err.message); }
-};
+  const confirmBooking = async (e) => {
+    try {
+      await supabase.from('calendar_entries').update({ event_type: 'event' }).eq('id', e.id);
+      toast.success('Événement confirmé ✓');
+      if (onRefresh) onRefresh();
+    } catch(err) { toast.error(err.message); }
+  };
 
   return (
     <div style={{ background: C.bg2, border: '1px solid '+C.border, borderRadius: 12, padding: 16, minWidth: 260 }}>
@@ -264,16 +265,19 @@ const confirmBooking = async (e) => {
       </div>
       {dayEvents.length === 0 && <div style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>Aucun événement ce jour</div>}
       {dayEvents.map(e => (
-<div key={e.id} onClick={() => onEdit(e)}
-  style={{ background: e.visibility === 'public' ? 'rgba(62,216,112,0.15)' : C.card, border: '2px solid '+(e.visibility === 'public' ? '#3ed870' : C.border), borderLeft: '4px solid '+getEventColor(e.event_type), borderRadius: 8, padding: '8px 10px', marginBottom: 7, cursor: 'pointer' }}>
-  <div style={{ fontWeight: 600, fontSize: 12, color: C.text, marginBottom: 2 }}>{e.title}</div>
-  {e.time_start && <div style={{ fontSize: 11, color: C.muted }}>🕐 {e.time_start} – {e.time_end}</div>}          {e.location && <div style={{ fontSize: 11, color: C.dim }}>📍 {e.location}</div>}
+        <div key={e.id} onClick={() => onEdit(e)}
+          style={{ background: e.visibility === 'public' ? 'rgba(62,216,112,0.15)' : C.card, border: '2px solid '+(e.visibility === 'public' ? '#3ed870' : C.border), borderLeft: '4px solid '+getEventColor(e.event_type), borderRadius: 8, padding: '8px 10px', marginBottom: 7, cursor: 'pointer' }}
+          onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
+          onMouseLeave={ev => ev.currentTarget.style.background = e.visibility === 'public' ? 'rgba(62,216,112,0.15)' : C.card}>
+          <div style={{ fontWeight: 600, fontSize: 12, color: C.text, marginBottom: 2 }}>{e.title}</div>
+          {e.time_start && <div style={{ fontSize: 11, color: C.muted }}>🕐 {e.time_start} – {e.time_end}</div>}
+          {e.location && <div style={{ fontSize: 11, color: C.dim }}>📍 {e.location}</div>}
           <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
             <span style={{ background: getEventColor(e.event_type)+'22', color: getEventColor(e.event_type), borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>
               {EVENT_TYPES.find(t => t.k === e.event_type)?.l || e.event_type}
             </span>
-            <span style={{ fontSize: 10, color: e.visibility === 'public' ? C.green : e.visibility === 'shared' ? C.blue : C.dim }}>
-              {e.visibility === 'public' ? '🌐' : e.visibility === 'shared' ? '🔗' : '🔒'}
+            <span style={{ fontSize: 10, color: e.visibility === 'public' ? '#3ed870' : e.visibility === 'shared' ? C.blue : C.dim }}>
+              {e.visibility === 'public' ? '🌐 Public' : e.visibility === 'shared' ? '🔗' : '🔒'}
             </span>
           </div>
           {e.event_type === 'booking' && (
@@ -342,7 +346,8 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
       const to   = new Date(year, month + 2, 0).toISOString();
       const [{ data: mine }, { data: theirs }] = await Promise.all([
         supabase.from('calendar_entries').select('*').eq('user_id', myId).gte('date_start', from).lte('date_start', to),
-        supabase.from('calendar_entries').select('*').eq('user_id', otherProfile.user_id || otherProfile.id).eq('visibility', 'public')      ]);
+        supabase.from('calendar_entries').select('*').eq('user_id', otherProfile.user_id || otherProfile.id).eq('visibility', 'public').gte('date_start', from).lte('date_start', to),
+      ]);
       setMyEntries(mine || []);
       setOtherEntries(theirs || []);
     } catch (e) { toast.error(e.message); }
@@ -463,7 +468,8 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
 /* ══════════════════════════════════
    MAIN CalendarView
 ══════════════════════════════════ */
-export function CalendarView({ myId, profiles = [], onInvite }) {  const today = new Date();
+export function CalendarView({ myId, profiles = [], onInvite }) {  
+  const today = new Date();
   const [year, setYear]               = useState(today.getFullYear());
   const [month, setMonth]             = useState(today.getMonth());
   const [entries, setEntries]         = useState([]);
@@ -591,7 +597,8 @@ export function CalendarView({ myId, profiles = [], onInvite }) {  const today =
               <div key={e.id} onClick={() => { setEditEvent(e); setFormDate(null); }}
                 style={{ background: C.card, border: '1px solid '+C.border, borderLeft: '3px solid '+getEventColor(e.event_type), borderRadius: 9, padding: '11px 14px', marginBottom: 8, cursor: 'pointer', transition: 'all .15s' }}
                 onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
-                onMouseLeave={ev => ev.currentTarget.style.background = e.visibility === 'public' ? C.green+'11' : C.card}>                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                onMouseLeave={ev => ev.currentTarget.style.background = C.card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, color: C.text }}>{e.title}</div>
                   <span style={{ fontSize: 10, color: C.dim }}>{new Date(e.date_start).toLocaleDateString('fr', { day: 'numeric', month: 'short' })}</span>
                 </div>
@@ -611,11 +618,11 @@ export function CalendarView({ myId, profiles = [], onInvite }) {  const today =
 
         {selectedDate && view === 'month' && (
           <DayPanel date={selectedDate} events={entries}
-  onEdit={e => { setEditEvent(e); setFormDate(null); setSelectedDate(null); }}
-  onClose={() => setSelectedDate(null)}
-  onNew={() => { setFormDate(selectedDate); setEditEvent(null); setSelectedDate(null); }}
-  onRefresh={loadEntries}
-/>
+            onEdit={e => { setEditEvent(e); setFormDate(null); setSelectedDate(null); }}
+            onClose={() => setSelectedDate(null)}
+            onNew={() => { setFormDate(selectedDate); setEditEvent(null); setSelectedDate(null); }}
+            onRefresh={loadEntries}
+          />
         )}
       </div>
 
@@ -640,7 +647,8 @@ export function CalendarView({ myId, profiles = [], onInvite }) {  const today =
           myId={myId}
           otherProfile={compareProfile}
           onClose={() => setCompareProfile(null)}
-onInvite={(profile, date) => { setCompareProfile(null); if(onInvite) onInvite(profile, date); }}        />
+          onInvite={(profile, date) => { setCompareProfile(null); if(onInvite) onInvite(profile, date); }}
+        />
       )}
 
       {(formDate || editEvent) && (
