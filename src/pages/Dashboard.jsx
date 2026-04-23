@@ -972,22 +972,34 @@ export default function Dashboard() {
   const filterRef = useRef(filter);
   searchRef.current = search;
   filterRef.current = filter;
+  const isFirstMount = useRef(true);
 
   const loadProfiles = useCallback(async () => {
+    if (filterRef.current === 'events') return;
     setLoadingProfiles(true);
-    try {
-      const data = await getAllProfiles({
-        search: searchRef.current || undefined,
-        type: (filterRef.current !== 'all' && filterRef.current !== 'events') ? filterRef.current : undefined
-      });
-      setLocalProfiles(data);
-      setProfiles(data);
-    } catch(e) { toast.error('Erreur chargement: '+e.message); }
+    let data = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        data = await getAllProfiles({
+          search: searchRef.current || undefined,
+          type: filterRef.current !== 'all' ? filterRef.current : undefined,
+        });
+        break;
+      } catch(e) {
+        if (attempt === 2) toast.error('Erreur chargement: ' + e.message);
+        else await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+    if (data) { setLocalProfiles(data); setProfiles(data); }
     setLoadingProfiles(false);
   }, []);
 
-  useEffect(() => { if (filter !== 'events') loadProfiles(); }, [filter]);
-  useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);
+  useEffect(() => { loadProfiles(); }, [filter]);
+  useEffect(() => {
+    if (isFirstMount.current) { isFirstMount.current = false; return; }
+    const t = setTimeout(loadProfiles, 350);
+    return () => clearTimeout(t);
+  }, [search]);
   useEffect(() => { getPublicEvents().then(setPublicEvents).catch(()=>{}); }, []);
 
   const handleLogout = async () => {
