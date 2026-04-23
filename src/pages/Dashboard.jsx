@@ -154,7 +154,7 @@ function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
 }
 
 /* ── Map View (Mapbox) ── */
-function MapView({ artists, myProfile, onOpen, events = [] }) {
+function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
   const [popup, setPopup] = useState(null);
   const [hov, setHov] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -182,6 +182,7 @@ function MapView({ artists, myProfile, onOpen, events = [] }) {
             const isMe = myProfile && a.id === myProfile.id;
             const isH = hov === a.id;
             const size = isH ? 46 : isMe ? 40 : 34;
+            const venueEvts = a.type === 'venue' ? allEvents.filter(ev => ev.user_id === a.id).slice(0, 4) : [];
             return (
               <Marker key={a.id} longitude={a.lng} latitude={a.lat} anchor="center" onClick={e=>{ e.originalEvent.stopPropagation(); setPopup(a); }}>
                 <div onMouseEnter={()=>setHov(a.id)} onMouseLeave={()=>setHov(null)} style={{ position:'relative', cursor:'pointer', transition:'all .2s', zIndex:isH?20:isMe?15:10 }}>
@@ -190,11 +191,24 @@ function MapView({ artists, myProfile, onOpen, events = [] }) {
                     {a.avatar || '🎵'}
                   </div>
                   {isMe && !isH && <div style={{ position:'absolute', top:-4, right:-4, width:10, height:10, borderRadius:'50%', background:C.glow, border:'2px solid '+C.bg, animation:'pulse 2s infinite' }} />}
+                  {venueEvts.length > 0 && !isH && <div style={{ position:'absolute', top:-3, right:-3, width:9, height:9, borderRadius:'50%', background:C.purple, border:'2px solid '+C.bg, boxShadow:'0 0 5px '+C.purple }} />}
                   {isH && !popup && (
-                    <div style={{ position:'absolute', bottom:'calc(100% + 8px)', left:'50%', transform:'translateX(-50%)', background:C.card, border:'1px solid '+(isMe?C.glow:C.border), borderRadius:8, padding:'5px 9px', whiteSpace:'nowrap', color:C.text, fontSize:12, pointerEvents:'none', zIndex:30, boxShadow:'0 4px 16px #00000080' }}>
-                      {isMe && <span style={{ color:C.glow, fontSize:10 }}>✦ Vous · </span>}
-                      <strong>{a.name}</strong>
-                      <div style={{ color:C.muted, fontSize:10 }}>{a.region}</div>
+                    <div style={{ position:'absolute', bottom:'calc(100% + 10px)', left:'50%', transform:'translateX(-50%)', background:C.bg2, border:'1px solid '+(isMe?C.glow:venueEvts.length>0?C.purple:C.border), borderRadius:10, padding:'8px 11px', color:C.text, fontSize:12, pointerEvents:'none', zIndex:30, boxShadow:'0 6px 24px #00000090', minWidth:150, maxWidth:230 }}>
+                      {isMe && <div style={{ color:C.glow, fontSize:9, marginBottom:3 }}>✦ Votre profil actif</div>}
+                      <strong style={{ whiteSpace:'nowrap' }}>{a.name}</strong>
+                      <div style={{ color:C.muted, fontSize:10, whiteSpace:'nowrap', marginBottom: venueEvts.length > 0 ? 6 : 0 }}>{a.region}</div>
+                      {venueEvts.length > 0 && <>
+                        <div style={{ borderTop:'1px solid '+C.border, paddingTop:5, marginBottom:3 }}>
+                          <div style={{ fontSize:9, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>📅 Événements à venir</div>
+                          {venueEvts.map(ev=>(
+                            <div key={ev.id} style={{ fontSize:10, color:C.purple, marginBottom:3, display:'flex', alignItems:'center', gap:3 }}>
+                              <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ev.title}</span>
+                              <span style={{ color:C.dim, flexShrink:0, fontSize:9 }}>{new Date(ev.date_start).toLocaleDateString('fr',{day:'numeric',month:'short'})}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ fontSize:9, color:C.dim, textAlign:'center' }}>Cliquer pour voir le profil</div>
+                      </>}
                     </div>
                   )}
                 </div>
@@ -232,6 +246,17 @@ function MapView({ artists, myProfile, onOpen, events = [] }) {
                   </div>
                 </div>
                 {popup.available && <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:C.green, marginBottom:7 }}><span style={{ width:5, height:5, borderRadius:'50%', background:C.green, display:'inline-block' }} />Disponible pour booking</div>}
+                {popup.type === 'venue' && allEvents.filter(ev=>ev.user_id===popup.id).length > 0 && (
+                  <div style={{ marginBottom:8 }}>
+                    <div style={{ fontSize:9, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>📅 Événements à venir</div>
+                    {allEvents.filter(ev=>ev.user_id===popup.id).slice(0,5).map(ev=>(
+                      <div key={ev.id} style={{ background:C.purple+'11', border:'1px solid '+C.purple+'33', borderRadius:5, padding:'3px 8px', fontSize:10, color:C.purple, marginBottom:3, display:'flex', justifyContent:'space-between', gap:6 }}>
+                        <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ev.title}</span>
+                        <span style={{ color:C.dim, flexShrink:0 }}>{new Date(ev.date_start).toLocaleDateString('fr',{day:'numeric',month:'short'})}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div style={{ display:'flex', gap:6 }}>
                   <button onClick={()=>{ onOpen(popup); setPopup(null); }} style={{ flex:1, background:'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>Voir profil</button>
                   <button onClick={()=>setPopup(null)} style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:6, color:C.muted, fontSize:11, padding:'5px 8px', cursor:'pointer' }}>✕</button>
@@ -1048,12 +1073,46 @@ export default function Dashboard() {
       )}
 
       <main style={{padding:'20px',maxWidth:1100,margin:'0 auto'}}>
-        {tab==='map'&&<MapView artists={filter==='events'?[]:filtered} myProfile={profile} onOpen={setProfileModal} events={filter==='events'?publicEvents:[]}/>}
-        {tab==='list'&&(
+        {tab==='map'&&<MapView artists={filter==='events'?[]:filtered} myProfile={profile} onOpen={setProfileModal} events={filter==='events'?publicEvents:[]} allEvents={publicEvents}/>}
+        {tab==='list'&&filter!=='events'&&(
           <div className='fade-in' style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
             {loadingProfiles&&profiles.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
             {filtered.map(a=><ProfileCard key={a.id} a={a} myId={profile?.id} onOpen={setProfileModal}/>)}
             {!loadingProfiles&&filtered?.length===0&&<div style={{gridColumn:'1/-1',color:C.dim,textAlign:'center',padding:'30px 0'}}>Aucun profil trouvé</div>}
+          </div>
+        )}
+        {tab==='list'&&filter==='events'&&(
+          <div className='fade-in'>
+            {publicEvents.length===0&&<div style={{color:C.dim,textAlign:'center',padding:'40px 0',fontSize:13}}>Aucun événement public à venir</div>}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:10}}>
+              {publicEvents.map(ev=>{
+                const p=ev.profile;
+                const ec=ev.event_type==='booking'?C.amber:ev.event_type==='event'?C.orange:C.muted;
+                return (
+                  <div key={ev.id} onClick={()=>p&&setProfileModal(p)}
+                    style={{background:C.card,border:'1px solid '+C.purple+'44',borderLeft:'3px solid '+C.purple,borderRadius:9,padding:'12px 14px',cursor:'pointer',transition:'all .15s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.cardHov}
+                    onMouseLeave={e=>e.currentTarget.style.background=C.card}>
+                    <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:7}}>
+                      <span style={{fontSize:26}}>{p?.avatar||'📅'}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:13,color:C.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ev.title}</div>
+                        <div style={{fontSize:11,color:C.muted}}>{p?.name} · {p?.region}</div>
+                      </div>
+                      <span style={{background:C.purple+'22',color:C.purple,border:'1px solid '+C.purple+'44',borderRadius:20,padding:'1px 8px',fontSize:9,fontWeight:700,whiteSpace:'nowrap'}}>🌐 Public</span>
+                    </div>
+                    <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                      <span style={{fontSize:11,color:C.amber}}>📅 {new Date(ev.date_start).toLocaleDateString('fr',{weekday:'long',day:'numeric',month:'long'})}</span>
+                    </div>
+                    {ev.description&&<div style={{fontSize:11,color:C.dim,marginTop:5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ev.description}</div>}
+                    <div style={{display:'flex',gap:6,marginTop:6}}>
+                      <span style={{background:ec+'22',color:ec,borderRadius:20,padding:'1px 7px',fontSize:10}}>{p?.type==='venue'?'🏛️ Lieu':'🎵 Artiste'}</span>
+                      {p?.genre&&<span style={{fontSize:10,color:C.dim}}>· {p.genre}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
         {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={async (plan) => {
