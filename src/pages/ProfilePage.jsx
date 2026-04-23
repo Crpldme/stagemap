@@ -68,16 +68,29 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: p, error }, { data: evs }] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', id).single(),
-        supabase.from('calendar_entries').select('*')
-          .eq('user_id', id).eq('visibility', 'public')
-          .gt('date_start', new Date().toISOString())
-          .order('date_start', { ascending: true })
-          .limit(6),
-      ]);
-      if (error || !p) { setNotFound(true); setLoading(false); return; }
-      setProfile(p);
+      // Ensure Supabase session is loaded from localStorage before querying
+      await supabase.auth.getSession();
+
+      const { data: p, error } = await supabase
+        .from('profiles').select('*').eq('id', id).single();
+
+      if (error || !p) {
+        // Retry once — session may need an extra tick to propagate
+        await new Promise(r => setTimeout(r, 600));
+        const { data: p2, error: e2 } = await supabase
+          .from('profiles').select('*').eq('id', id).single();
+        if (e2 || !p2) { setNotFound(true); setLoading(false); return; }
+        setProfile(p2);
+      } else {
+        setProfile(p);
+      }
+
+      const { data: evs } = await supabase
+        .from('calendar_entries').select('*')
+        .eq('user_id', id).eq('visibility', 'public')
+        .gt('date_start', new Date().toISOString())
+        .order('date_start', { ascending: true })
+        .limit(6);
       setEvents(evs || []);
       setLoading(false);
     };
