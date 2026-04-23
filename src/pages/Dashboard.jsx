@@ -8,10 +8,10 @@ import {
   getMessages, sendMessage, markMessageRead,
   getChatMessages, sendChatMessage, subscribeToChatRoom, getRoomId,
   getMyInvitations, createInvitation, respondToInvitation,
-  getMyCalendar, addCalendarEntry, createCampaign,
+  getMyCalendar, addCalendarEntry, createCampaign, getPublicEvents,
 } from '../lib/supabase';
 import { runAI, buildTourPlannerSystem } from '../lib/ai';
-import { startSubscription, checkSubscription, PRICES } from '../lib/stripe';
+import { startSubscription, payForCampaign, checkSubscription, PRICES } from '../lib/stripe';
 import Map, { Marker, Popup, NavigationControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { CalendarView } from '../components/CalendarView';
@@ -154,7 +154,7 @@ function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
 }
 
 /* ── Map View (Mapbox) ── */
-function MapView({ artists, myProfile, onOpen }) {
+function MapView({ artists, myProfile, onOpen, events = [] }) {
   const [popup, setPopup] = useState(null);
   const [hov, setHov] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -201,7 +201,25 @@ function MapView({ artists, myProfile, onOpen }) {
               </Marker>
             );
           })}
-          {popup && (
+          {events.filter(ev=>ev.profile?.lat&&ev.profile?.lng).map(ev=>(
+            <Marker key={'ev_'+ev.id} longitude={ev.profile.lng} latitude={ev.profile.lat} anchor="center" onClick={e=>{ e.originalEvent.stopPropagation(); setPopup({...ev,_isEvent:true}); }}>
+              <div style={{ cursor:'pointer', width:30, height:30, borderRadius:6, background:C.purple+'22', border:'2px solid '+C.purple, display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, boxShadow:'0 0 12px '+C.purple+'66', transition:'all .2s' }}
+                onMouseEnter={e=>{ e.currentTarget.style.transform='scale(1.2)'; }} onMouseLeave={e=>{ e.currentTarget.style.transform='none'; }}>
+                📅
+              </div>
+            </Marker>
+          ))}
+          {popup && popup._isEvent ? (
+            <Popup longitude={popup.profile.lng} latitude={popup.profile.lat} anchor="bottom" offset={28} onClose={()=>setPopup(null)} closeButton={false} style={{ zIndex:50 }}>
+              <div style={{ background:C.bg2, border:'1px solid '+C.purple+'66', borderRadius:10, padding:'10px 13px', minWidth:190, fontFamily:"'Outfit',sans-serif", color:C.text }}>
+                <div style={{ color:C.purple, fontSize:10, marginBottom:4 }}>📅 Événement public</div>
+                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, fontWeight:700, marginBottom:2 }}>{popup.title}</div>
+                <div style={{ color:C.muted, fontSize:11, marginBottom:2 }}>{new Date(popup.date_start).toLocaleDateString('fr',{day:'numeric',month:'long',year:'numeric'})}</div>
+                <div style={{ color:C.dim, fontSize:11, marginBottom:8 }}>par {popup.profile.name} · {popup.profile.region}</div>
+                <button onClick={()=>{ onOpen(popup.profile); setPopup(null); }} style={{ width:'100%', background:'linear-gradient(135deg,'+C.purple+',#8030cc)', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>Voir le profil</button>
+              </div>
+            </Popup>
+          ) : popup && (
             <Popup longitude={popup.lng} latitude={popup.lat} anchor="bottom" offset={28} onClose={()=>setPopup(null)} closeButton={false} style={{ zIndex:50 }}>
               <div style={{ background:C.bg2, border:'1px solid '+(myProfile&&popup.id===myProfile.id?C.glow:C.border), borderRadius:10, padding:'10px 13px', minWidth:180, fontFamily:"'Outfit',sans-serif", color:C.text }}>
                 {myProfile && popup.id === myProfile.id && <div style={{ color:C.glow, fontSize:10, marginBottom:4 }}>✦ Votre profil actif</div>}
@@ -226,15 +244,20 @@ function MapView({ artists, myProfile, onOpen }) {
           {withCoords?.length} profils sur la carte
         </div>
       </div>
-      <div style={{ display:'flex', gap:14, marginTop:8, justifyContent:'center' }}>
-        {Object.entries(typeColors).map(([t,c]) => (
-          <span key={t} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
-            <span style={{ width:8, height:8, borderRadius:'50%', background:c, display:'inline-block' }} />{typeLabels[t]}
-          </span>
-        ))}
-        <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
-          <span style={{ width:8, height:8, borderRadius:'50%', background:C.glow, display:'inline-block' }} />Vous
-        </span>
+      <div style={{ display:'flex', gap:14, marginTop:8, justifyContent:'center', flexWrap:'wrap' }}>
+        {events.length > 0
+          ? <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}><span style={{ width:10, height:10, borderRadius:3, background:C.purple, display:'inline-block' }} />Événement public</span>
+          : <>
+            {Object.entries(typeColors).map(([t,c]) => (
+              <span key={t} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
+                <span style={{ width:8, height:8, borderRadius:'50%', background:c, display:'inline-block' }} />{typeLabels[t]}
+              </span>
+            ))}
+            <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
+              <span style={{ width:8, height:8, borderRadius:'50%', background:C.glow, display:'inline-block' }} />Vous
+            </span>
+          </>
+        }
       </div>
     </div>
   );
@@ -652,7 +675,19 @@ function PromoModule({ myProfile, isSubscribed }) {
   const totalBudget = Object.entries(pl).filter(([k,v])=>v&&k!=='stagemap')?.length*30+ev.budget;
 
   const launch = async () => {
-    try { await startSubscription(pkg.id, myProfile.id); }
+    try {
+      await payForCampaign({
+        package_id: pkg.id,
+        title: ev.title,
+        date: ev.date,
+        venue: ev.venue,
+        city: ev.city,
+        genre: ev.genre,
+        description: ev.desc,
+        platforms: Object.keys(pl).filter(k => pl[k]),
+        budget: totalBudget,
+      }, myProfile.id);
+    }
     catch(e) { toast.error('Erreur paiement: '+e.message); }
   };
 
@@ -851,6 +886,36 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
   );
 }
 
+/* ── Upgrade Modal ── */
+function UpgradeModal({ reason, profile, onClose }) {
+  const isFan = reason === 'fan';
+  return (
+    <div style={{ position:'fixed', inset:0, background:'#00000090', zIndex:3000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:C.bg2, border:'1px solid '+C.border, borderRadius:16, maxWidth:420, width:'100%', padding:32, boxShadow:'0 40px 100px #00000090', textAlign:'center' }}>
+        <div style={{ fontSize:44, marginBottom:12 }}>🔒</div>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:C.cream, marginBottom:10 }}>
+          {isFan ? 'Section réservée aux professionnels' : 'Fonctionnalité Premium'}
+        </div>
+        <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:22 }}>
+          {isFan
+            ? "Cette section est réservée aux artistes et lieux. Créez un profil Artiste ou Lieu pour accéder à l'IA Tournée, l'agenda et les campagnes."
+            : "Abonnez-vous pour débloquer l'IA Tournée, l'agenda complet, la comparaison de disponibilités et les campagnes publicitaires."}
+        </div>
+        {isFan
+          ? <Btn onClick={onClose}>Compris</Btn>
+          : <>
+            <div style={{ display:'flex', gap:10, justifyContent:'center', marginBottom:12 }}>
+              <Btn onClick={()=>startSubscription('monthly',profile.id).catch(e=>toast.error(e.message))}>19 $/mois</Btn>
+              <Btn v='secondary' onClick={()=>startSubscription('annual',profile.id).catch(e=>toast.error(e.message))}>149 $/an (−22%)</Btn>
+            </div>
+            <button onClick={onClose} style={{ background:'none', border:'none', color:C.dim, cursor:'pointer', fontSize:11 }}>Pas maintenant</button>
+          </>
+        }
+      </div>
+    </div>
+  );
+}
+
 /* ════════════════════════════════════
    MAIN DASHBOARD
 ═══════════════════════════════════ */
@@ -866,8 +931,17 @@ export default function Dashboard() {
   const [messages, setMessages] = useState([]);
   const [calEntries, setCalEntries] = useState([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [showUpgrade, setShowUpgrade] = useState(null);
+  const [publicEvents, setPublicEvents] = useState([]);
 
-  const isSubscribed = checkSubscription(profile);
+  const isSubscribed = true; // TODO: restore checkSubscription(profile) before production
+  const isFan = profile?.type === 'fan';
+  const lockedFor = (tabKey) => {
+    if (!['ai','cal','promo'].includes(tabKey)) return null;
+    if (isFan) return 'fan';
+    if (!isSubscribed) return 'pro';
+    return null;
+  };
 
   const searchRef = useRef(search);
   const filterRef = useRef(filter);
@@ -879,7 +953,7 @@ export default function Dashboard() {
     try {
       const data = await getAllProfiles({
         search: searchRef.current || undefined,
-        type: filterRef.current !== 'all' ? filterRef.current : undefined
+        type: (filterRef.current !== 'all' && filterRef.current !== 'events') ? filterRef.current : undefined
       });
       setLocalProfiles(data);
       setProfiles(data);
@@ -887,8 +961,9 @@ export default function Dashboard() {
     setLoadingProfiles(false);
   }, []);
 
-  useEffect(() => { loadProfiles(); }, [filter]);
+  useEffect(() => { if (filter !== 'events') loadProfiles(); }, [filter]);
   useEffect(() => { const t = setTimeout(loadProfiles, 400); return ()=>clearTimeout(t); }, [search]);
+  useEffect(() => { getPublicEvents().then(setPublicEvents).catch(()=>{}); }, []);
 
   const handleLogout = async () => {
     try { await signOut(); } catch(e) {}
@@ -911,7 +986,6 @@ export default function Dashboard() {
     (filter === 'all' || a.type === filter) &&
     (!search || (a.name+a.genre+(a.region||'')+(a.country||'')).toLowerCase().includes(search.toLowerCase()))
   );
-console.log('filtered', filtered.length, 'profiles', profiles.length);
   const TABS = [
     { k:'map',    i:'🗺️',  l:'Carte' },
     { k:'list',   i:'📋',  l:'Répertoire' },
@@ -920,7 +994,7 @@ console.log('filtered', filtered.length, 'profiles', profiles.length);
     { k:'cal',    i:'📅',  l:'Agenda' },
     { k:'promo',  i:'📣',  l:'Promotion' },
     { k:'me',     i:'👤',  l:'Profil' },
-  ];
+  ].map(t => ({ ...t, locked: lockedFor(t.k) }));
 
   return (
     <div style={{fontFamily:"'Outfit',sans-serif",background:C.bg,color:C.text,minHeight:'100vh'}}>
@@ -935,9 +1009,9 @@ console.log('filtered', filtered.length, 'profiles', profiles.length);
 
         <nav style={{display:'flex',gap:1,marginLeft:12,flex:1,overflowX:'auto'}}>
           {TABS.map(n=>(
-            <button key={n.k} onClick={()=>setTab(n.k)}
-              style={{position:'relative',background:tab===n.k?C.orange+'20':'none',border:'1px solid '+(tab===n.k?C.orange+'66':'transparent'),color:tab===n.k?C.orangeLt:C.muted,borderRadius:7,padding:'4px 11px',cursor:'pointer',fontSize:11,fontWeight:tab===n.k?600:400,fontFamily:"'Outfit',sans-serif",transition:'all .15s',whiteSpace:'nowrap'}}>
-              {n.i} {n.l}
+            <button key={n.k} onClick={()=>{ if(n.locked) setShowUpgrade(n.locked); else setTab(n.k); }}
+              style={{position:'relative',background:tab===n.k?C.orange+'20':'none',border:'1px solid '+(tab===n.k?C.orange+'66':'transparent'),color:n.locked?C.dim:tab===n.k?C.orangeLt:C.muted,borderRadius:7,padding:'4px 11px',cursor:'pointer',fontSize:11,fontWeight:tab===n.k?600:400,fontFamily:"'Outfit',sans-serif",transition:'all .15s',whiteSpace:'nowrap',opacity:n.locked?.6:1}}>
+              {n.i} {n.l}{n.locked?' 🔒':''}
               {n.badge>0&&<span style={{position:'absolute',top:0,right:0,background:C.red,color:'#fff',borderRadius:'50%',width:14,height:14,fontSize:9,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{n.badge}</span>}
             </button>
           ))}
@@ -962,14 +1036,19 @@ console.log('filtered', filtered.length, 'profiles', profiles.length);
               {f==='all'?'Tous':(f==='artist'?'🎵 ':f==='venue'?'🏛️ ':'💛 ')+typeLabels[f]}
             </button>
           ))}
+          <button onClick={()=>setFilter('events')} style={{background:filter==='events'?C.purple+'22':C.tag,color:filter==='events'?C.purple:C.muted,border:'1px solid '+(filter==='events'?C.purple:C.border),borderRadius:20,padding:'3px 11px',cursor:'pointer',fontSize:11,fontWeight:filter==='events'?600:400,fontFamily:"'Outfit',sans-serif"}}>
+            📅 Événements
+          </button>
           <span style={{marginLeft:'auto',color:C.dim,fontSize:11}}>
-            {loadingProfiles?'Chargement...':(filtered?.length+' profils')}
+            {filter==='events'
+              ? publicEvents.length+' événement'+(publicEvents.length!==1?'s':'')
+              : loadingProfiles?'Chargement...':(filtered?.length+' profils')}
           </span>
         </div>
       )}
 
       <main style={{padding:'20px',maxWidth:1100,margin:'0 auto'}}>
-        {tab==='map'&&<MapView artists={filtered} myProfile={profile} onOpen={setProfileModal}/>}
+        {tab==='map'&&<MapView artists={filter==='events'?[]:filtered} myProfile={profile} onOpen={setProfileModal} events={filter==='events'?publicEvents:[]}/>}
         {tab==='list'&&(
           <div className='fade-in' style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
             {loadingProfiles&&profiles.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
@@ -977,7 +1056,14 @@ console.log('filtered', filtered.length, 'profiles', profiles.length);
             {!loadingProfiles&&filtered?.length===0&&<div style={{gridColumn:'1/-1',color:C.dim,textAlign:'center',padding:'30px 0'}}>Aucun profil trouvé</div>}
           </div>
         )}
-        {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={plan=>{}}/>}
+        {tab==='ai'&&<AIPanel profiles={profiles} myProfile={profile} onLaunchTour={async (plan) => {
+          try {
+            for (const stop of plan.stops) {
+              await createInvitation({ organizer_id: profile.id, invitee_id: stop.profileId, tour_title: plan.title, date: stop.date, city: stop.city, role: stop.role, note: stop.note, status: 'pending' });
+            }
+            toast.success(`${plan.stops.length} invitation(s) envoyée(s) !`);
+          } catch(e) { toast.error('Erreur : '+e.message); }
+        }}/>}
         {tab==='inbox'&&<InboxView messages={messages} myId={user?.id} profiles={profiles} onChat={openChat} onRefresh={()=>getMessages(user.id).then(setMessages)}/>}
         {tab==='cal'&&<CalendarView myId={profile?.id} profiles={profiles} onInvite={(p, date) => { setInviteTarget(p); }} />}
         {tab==='promo'&&<PromoModule myProfile={profile} isSubscribed={isSubscribed}/>}
@@ -993,6 +1079,7 @@ console.log('filtered', filtered.length, 'profiles', profiles.length);
       {inviteTarget&&profile&&(
         <InviteModal organizer={profile} invitee={inviteTarget} profiles={profiles} onClose={()=>setInviteTarget(null)} onSent={()=>{setInviteTarget(null);getMessages(user.id).then(setMessages);}}/>
       )}
+      {showUpgrade&&<UpgradeModal reason={showUpgrade} profile={profile} onClose={()=>setShowUpgrade(null)}/>}
     </div>
   );
 }

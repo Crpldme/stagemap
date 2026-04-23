@@ -134,7 +134,6 @@ export const getMessages = async (userId) => {
     .or(allIds.map(id => `from_id.eq.${id},to_id.eq.${id}`).join(','))
     .order('created_at', { ascending: false });
   
-  console.log('getAllProfiles result', data?.length, error);
   if (error) throw error;
   return data || [];
 };
@@ -201,30 +200,22 @@ export const createInvitation = async (inv) => {
 };
 
 export const getMyInvitations = async (userId) => {
-  console.log('getMyInvitations called with userId:', userId);
   const { data: userProfiles } = await supabase
     .from('profiles')
     .select('id')
     .eq('user_id', userId);
-  
-  console.log('userProfiles found:', userProfiles);
-  
+
   const profileIds = userProfiles ? userProfiles.map(p => p.id) : [];
   const allIds = [...new Set([userId, ...profileIds])];
-  
-  console.log('allIds:', allIds);
-  
+
   const orFilter = allIds.map(id => `organizer_id.eq.${id},invitee_id.eq.${id}`).join(',');
-  
-  console.log('orFilter:', orFilter);
-  
+
   const { data, error } = await supabase
     .from('invitations')
     .select('*')
     .or(orFilter)
     .order('created_at', { ascending: false });
-  
-  console.log('invitations found:', data?.length, error);
+
   if (error) throw error;
   return data || [];
 };
@@ -243,14 +234,14 @@ export const respondToInvitation = async (invId, status, signature = null) => {
   if (status === 'accepted' && data) {
     const event = {
       title: data.tour_title || 'Événement confirmé',
+      description: data.city ? `📍 ${data.city} · ${data.role || ''}` : '',
       event_type: 'booking',
       date_start: data.date ? data.date + 'T00:00' : new Date().toISOString().split('T')[0] + 'T00:00',
       date_end: data.date ? data.date + 'T23:59' : new Date().toISOString().split('T')[0] + 'T23:59',
       visibility: 'private',
-      location: data.city || '',
-      is_availability: false,
+      color: '#ffb940',
     };
-    await supabase.from('calendar_entries').insert({ ...event, user_id: data.organizer_id });
+    // Only insert for the invitee — RLS blocks inserting on behalf of the organizer
     await supabase.from('calendar_entries').insert({ ...event, user_id: data.invitee_id });
   }
 
@@ -298,4 +289,23 @@ export const addCalendarEntry = async (entry) => {
     .single();
   if (error) throw error;
   return data;
+};
+
+export const getPublicEvents = async () => {
+  const { data: events, error } = await supabase
+    .from('calendar_entries')
+    .select('*')
+    .eq('visibility', 'public')
+    .gt('date_start', new Date().toISOString())
+    .order('date_start', { ascending: true });
+  if (error) throw error;
+  if (!events || events.length === 0) return [];
+  const userIds = [...new Set(events.map(e => e.user_id))];
+  const { data: profileRows } = await supabase
+    .from('profiles')
+    .select('id, name, avatar, type, genre, region, lat, lng')
+    .in('id', userIds);
+  const pm = {};
+  (profileRows || []).forEach(p => { pm[p.id] = p; });
+  return events.map(e => ({ ...e, profile: pm[e.user_id] || null }));
 };

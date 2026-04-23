@@ -18,7 +18,7 @@ const DAYS_FR = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const EVENT_TYPES = [
   { k:'availability', l:'🟢 Disponibilité', c:C.green },
   { k:'event',        l:'🎵 Événement',     c:C.orange },
-  { k:'booking',      l:'📋 Booking',       c:C.blue },
+  { k:'booking',      l:'📋 Booking',       c:C.amber },
   { k:'personal',     l:'🔒 Personnel',     c:C.muted },
 ];
 
@@ -30,6 +30,10 @@ const RECURRENCE = [
 ];
 
 function getEventColor(type) { return EVENT_TYPES.find(e => e.k === type)?.c || C.orange; }
+function getPublicTitle(event) {
+  if (event.visibility === 'public') return event.title;
+  return '📋 Annonce de booking à venir';
+}
 function getDaysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
 function getFirstDayOfMonth(year, month) { return new Date(year, month, 1).getDay(); }
 function isSameDay(a, b) {
@@ -95,13 +99,17 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
     time_start:   event?.time_start || (event?.date_start ? getTimeStr(event.date_start, '09:00') : '09:00'),
     time_end:     event?.time_end   || (event?.date_end   ? getTimeStr(event.date_end,   '17:00') : '17:00'),
     location:     event?.location || '',
-    visibility:   event?.visibility || 'public',
+    visibility:   event?.visibility || 'private',
     recurrence:   event?.recurrence || 'none',
     notify_email: event?.notify_email !== false,
     is_availability: event?.is_availability || false,
   });
   const [loading, setLoading] = useState(false);
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const [publicConfirmed, setPublicConfirmed] = useState(event?.visibility === 'public');
+  const set = (k, v) => {
+    setForm(f => ({ ...f, [k]: v }));
+    if (k === 'visibility' && v !== 'public') setPublicConfirmed(false);
+  };
 
   useEffect(() => {
     set('is_availability', form.event_type === 'availability');
@@ -218,7 +226,7 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Visibilité</div>
-              <Sel value={form.visibility} onChange={v => set('visibility', v)} options={[{ k: 'public', l: '🌐 Public' }, { k: 'shared', l: '🔗 Partagé' }, { k: 'private', l: '🔒 Privé' }]} />
+              <Sel value={form.visibility} onChange={v => set('visibility', v)} options={[{ k: 'private', l: '🔒 Privé' }, { k: 'shared', l: '🔗 Partagé' }, { k: 'public', l: '🌐 Public' }]} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
@@ -227,11 +235,21 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
               </label>
             </div>
           </div>
+          {form.visibility === 'public' && (
+            <div style={{ background: C.green+'11', border: '1px solid '+C.green+'44', borderRadius: 8, padding: '10px 12px' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                <input type='checkbox' checked={publicConfirmed} onChange={e => setPublicConfirmed(e.target.checked)} style={{ accentColor: C.green, width: 15, height: 15, marginTop: 1, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: C.green, lineHeight: 1.4 }}>
+                  ⚠️ Je confirme que cet événement sera <strong>visible par tous les utilisateurs</strong> de StageMap
+                </span>
+              </label>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 9, marginTop: 4 }}>
             {isEdit && <Btn v='danger' sz='sm' onClick={del} disabled={loading}>🗑 Supprimer</Btn>}
             <div style={{ flex: 1 }} />
             <Btn v='ghost' onClick={onClose}>Annuler</Btn>
-            <Btn onClick={save} disabled={loading}>{loading ? '⏳' : isEdit ? '💾 Sauvegarder' : '✦ Ajouter'}</Btn>
+            <Btn onClick={save} disabled={loading || (form.visibility === 'public' && !publicConfirmed)}>{loading ? '⏳' : isEdit ? '💾 Sauvegarder' : '✦ Ajouter'}</Btn>
           </div>
         </div>
       </div>
@@ -264,38 +282,61 @@ function DayPanel({ date, events, onEdit, onClose, onNew, onRefresh }) {
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer' }}>✕</button>
       </div>
       {dayEvents.length === 0 && <div style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>Aucun événement ce jour</div>}
-      {dayEvents.map(e => (
-        <div key={e.id} onClick={() => onEdit(e)}
-          style={{ background: e.visibility === 'public' ? 'rgba(62,216,112,0.15)' : C.card, border: '2px solid '+(e.visibility === 'public' ? '#3ed870' : C.border), borderLeft: '4px solid '+getEventColor(e.event_type), borderRadius: 8, padding: '8px 10px', marginBottom: 7, cursor: 'pointer' }}
-          onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
-          onMouseLeave={ev => ev.currentTarget.style.background = e.visibility === 'public' ? 'rgba(62,216,112,0.15)' : C.card}>
-          <div style={{ fontWeight: 600, fontSize: 12, color: C.text, marginBottom: 2 }}>{e.title}</div>
-          {e.time_start && <div style={{ fontSize: 11, color: C.muted }}>🕐 {e.time_start} – {e.time_end}</div>}
-          {e.location && <div style={{ fontSize: 11, color: C.dim }}>📍 {e.location}</div>}
-          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-            <span style={{ background: getEventColor(e.event_type)+'22', color: getEventColor(e.event_type), borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>
-              {EVENT_TYPES.find(t => t.k === e.event_type)?.l || e.event_type}
-            </span>
-            <span style={{ fontSize: 10, color: e.visibility === 'public' ? '#3ed870' : e.visibility === 'shared' ? C.blue : C.dim }}>
-              {e.visibility === 'public' ? '🌐 Public' : e.visibility === 'shared' ? '🔗' : '🔒'}
-            </span>
-          </div>
-          {e.event_type === 'booking' && (
-            <div style={{ marginTop: 8 }} onClick={ev => ev.stopPropagation()}>
-              <Btn sz='sm' v='success' onClick={() => confirmBooking(e)}>✓ Confirmer comme événement officiel</Btn>
+      {dayEvents.map(e => {
+        const ec = getEventColor(e.event_type);
+        const isPublic = e.visibility === 'public';
+        return (
+          <div key={e.id} onClick={() => onEdit(e)}
+            style={{ background: C.card, border: '1px solid '+C.border, borderLeft: '4px solid '+ec, borderRadius: 8, padding: '8px 10px', marginBottom: 7, cursor: 'pointer' }}
+            onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
+            onMouseLeave={ev => ev.currentTarget.style.background = C.card}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <div style={{ fontWeight: 600, fontSize: 12, color: C.text, flex: 1 }}>{e.title}</div>
+              {isPublic && <span style={{ background: C.green+'22', color: C.green, border: '1px solid '+C.green+'55', borderRadius: 20, padding: '1px 7px', fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap' }}>🌐 Public</span>}
             </div>
-          )}
-        </div>
-      ))}
+            {isPublic && (
+              <div style={{ background: C.green+'11', border: '1px solid '+C.green+'33', borderRadius: 5, padding: '4px 7px', fontSize: 10, color: C.green, marginBottom: 6 }}>
+                ⚠️ Cet événement est visible par tous les utilisateurs
+              </div>
+            )}
+            {isPublic && e.event_type !== 'availability' && (
+              <div style={{ background: C.tag, border: '1px dashed '+C.orange+'55', borderRadius: 5, padding: '7px 8px', fontSize: 10, color: C.dim, marginBottom: 6, textAlign: 'center' }}>
+                🖼️ Affiche de l'événement · Bientôt disponible
+              </div>
+            )}
+            {!isPublic && (e.event_type === 'booking' || e.event_type === 'event') && (
+              <div style={{ background: C.amber+'11', border: '1px solid '+C.amber+'33', borderRadius: 5, padding: '4px 7px', fontSize: 10, color: C.amber, marginBottom: 6 }}>
+                🔒 Titre masqué au public — publiez en mode Public pour révéler
+              </div>
+            )}
+            {e.time_start && <div style={{ fontSize: 11, color: C.muted }}>🕐 {e.time_start} – {e.time_end}</div>}
+            {e.location && <div style={{ fontSize: 11, color: C.dim }}>📍 {e.location}</div>}
+            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+              <span style={{ background: ec+'22', color: ec, borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>
+                {EVENT_TYPES.find(t => t.k === e.event_type)?.l || e.event_type}
+              </span>
+              {!isPublic && <span style={{ fontSize: 10, color: e.visibility === 'shared' ? C.blue : C.dim }}>
+                {e.visibility === 'shared' ? '🔗 Partagé' : '🔒 Privé'}
+              </span>}
+            </div>
+            {e.event_type === 'booking' && (
+              <div style={{ marginTop: 8 }} onClick={ev => ev.stopPropagation()}>
+                <Btn sz='sm' v='success' onClick={() => confirmBooking(e)}>✓ Confirmer comme événement officiel</Btn>
+              </div>
+            )}
+          </div>
+        );
+      })}
       <Btn onClick={onNew} full sz='sm' style={{ marginTop: 4 }}>+ Ajouter ici</Btn>
     </div>
   );
 }
 
 /* ── Profile Search ── */
-function ProfileSearch({ profiles, onSelect, onClose }) {
+function ProfileSearch({ profiles, myId, onSelect, onClose }) {
   const [q, setQ] = useState('');
   const filtered = profiles.filter(p =>
+    p.id !== myId &&
     (p.name + p.genre + p.region).toLowerCase().includes(q.toLowerCase())
   ).slice(0, 8);
 
@@ -346,7 +387,7 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
       const to   = new Date(year, month + 2, 0).toISOString();
       const [{ data: mine }, { data: theirs }] = await Promise.all([
         supabase.from('calendar_entries').select('*').eq('user_id', myId).gte('date_start', from).lte('date_start', to),
-        supabase.from('calendar_entries').select('*').eq('user_id', otherProfile.user_id || otherProfile.id).eq('visibility', 'public').gte('date_start', from).lte('date_start', to),
+        supabase.from('calendar_entries').select('*').eq('user_id', otherProfile.id).in('visibility', ['public', 'shared']).gte('date_start', from).lte('date_start', to),
       ]);
       setMyEntries(mine || []);
       setOtherEntries(theirs || []);
@@ -362,16 +403,18 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay    = getFirstDayOfMonth(year, month);
 
-  const getAvail = (entries, day) => {
+  const getEntriesForDay = (entries, day, typeFilter) => {
     const d = new Date(year, month, day);
     return entries.filter(e => {
-      if (e.event_type !== 'availability') return false;
+      if (typeFilter && !typeFilter.includes(e.event_type)) return false;
       const s = new Date(e.date_start);
       const en = new Date(e.date_end || e.date_start);
       return d >= new Date(s.getFullYear(), s.getMonth(), s.getDate()) &&
              d <= new Date(en.getFullYear(), en.getMonth(), en.getDate());
     });
   };
+  const getAvail = (entries, day) => getEntriesForDay(entries, day, ['availability']);
+  const getBusy  = (entries, day) => getEntriesForDay(entries, day, ['booking', 'event', 'personal']);
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#00000095', zIndex: 2500, display: 'flex', flexDirection: 'column', padding: 20, overflowY: 'auto' }} onClick={onClose}>
@@ -387,9 +430,10 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
 
         <div style={{ padding: '10px 22px', borderBottom: '1px solid '+C.border, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {[
-            { color: C.green,  label: 'Vous disponible' },
-            { color: C.blue,   label: otherProfile.name + ' disponible' },
-            { color: C.purple, label: '✨ Commun — cliquer pour inviter' },
+            { color: C.purple, label: '✨ Tous les deux disponibles — cliquer pour inviter' },
+            { color: C.amber,  label: otherProfile.name + ' est réservé(e)' },
+            { color: C.muted,  label: 'Vous êtes réservé(e)' },
+            { color: C.red,    label: 'Tous les deux occupés' },
           ].map(l => (
             <span key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.muted }}>
               <span style={{ width: 10, height: 10, borderRadius: 3, background: l.color, display: 'inline-block' }} />{l.label}
@@ -405,6 +449,11 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
 
         <div style={{ padding: '0 22px 22px' }}>
           {loading && <div style={{ textAlign: 'center', padding: '40px 0', color: C.muted }}>Chargement…</div>}
+          {!loading && otherEntries.length === 0 && (
+            <div style={{ background: C.blue+'11', border: '1px solid '+C.blue+'44', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: C.muted }}>
+              ℹ️ {otherProfile.name} n'a pas encore partagé sa disponibilité publiquement. Invitez-les à créer des entrées de type "Disponibilité" visibles publiquement.
+            </div>
+          )}
           {!loading && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
@@ -416,28 +465,44 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
                   const day = i + 1;
                   const d   = new Date(year, month, day);
                   const isToday   = isSameDay(d, today);
-                  const myAvail   = getAvail(myEntries, day);
-                  const othAvail  = getAvail(otherEntries, day);
-                  const both      = myAvail.length > 0 && othAvail.length > 0;
-                  const onlyMe    = myAvail.length > 0 && othAvail.length === 0;
-                  const onlyOther = myAvail.length === 0 && othAvail.length > 0;
+                  const myAvailCount   = getAvail(myEntries, day).length;
+                  const myBusyCount    = getBusy(myEntries, day).length;
+                  const othAvailCount  = getAvail(otherEntries, day).length;
+                  const othBusyEntries = getBusy(otherEntries, day);
+                  const othBusyCount   = othBusyEntries.length;
+                  // Free = no explicit availability entries (default open) OR more slots than bookings
+                  const iMeFree    = myAvailCount > 0  ? myAvailCount  > myBusyCount  : myBusyCount  === 0;
+                  const isThemFree = othAvailCount > 0 ? othAvailCount > othBusyCount : othBusyCount === 0;
+                  const bothFree      = iMeFree && isThemFree;
+                  const onlyMeBusy    = !iMeFree && isThemFree;
+                  const onlyThemBusy  = iMeFree && !isThemFree;
+                  const bothBusy      = !iMeFree && !isThemFree;
+                  // Remaining open slots to display
+                  const mySlotsLeft   = myAvailCount  > 0 ? Math.max(0, myAvailCount  - myBusyCount)  : null;
+                  const othSlotsLeft  = othAvailCount > 0 ? Math.max(0, othAvailCount - othBusyCount) : null;
 
-                  let bg = C.card;
-                  let brd = isToday ? C.glow+'66' : C.border;
-                  if (both)      { bg = C.purple+'22'; brd = C.purple; }
-                  else if (onlyMe)    { bg = C.green+'11';  brd = C.green+'66'; }
-                  else if (onlyOther) { bg = C.blue+'11';   brd = C.blue+'66'; }
+                  let bg  = C.purple+'18';
+                  let brd = C.purple+'55';
+                  let clickable = true;
+                  if (bothBusy)       { bg = C.red+'11';   brd = C.red+'44';   clickable = false; }
+                  else if (onlyMeBusy)    { bg = C.muted+'11'; brd = C.muted+'44'; clickable = false; }
+                  else if (onlyThemBusy)  { bg = C.amber+'11'; brd = C.amber+'66'; clickable = false; }
+                  if (isToday && bothFree) brd = C.glow;
 
                   return (
                     <div key={day}
-                      onClick={() => both && setSelectedSlot({ day, date: d })}
-                      style={{ minHeight: 70, background: bg, border: '1px solid '+brd, borderRadius: 8, padding: '5px 4px', cursor: both ? 'pointer' : 'default', transition: 'all .15s' }}
-                      onMouseEnter={e => { if (both) e.currentTarget.style.transform = 'scale(1.03)'; }}
+                      onClick={() => bothFree && setSelectedSlot({ day, date: d })}
+                      style={{ minHeight: 70, background: bg, border: '1px solid '+brd, borderRadius: 8, padding: '5px 4px', cursor: clickable ? 'pointer' : 'default', transition: 'all .15s' }}
+                      onMouseEnter={e => { if (clickable) e.currentTarget.style.transform = 'scale(1.03)'; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>
                       <div style={{ fontSize: 11, fontWeight: isToday ? 700 : 400, color: isToday ? C.glow : C.text, marginBottom: 3 }}>{day}</div>
-                      {both      && <div style={{ fontSize: 9, color: C.purple, fontWeight: 700 }}>✨ Commun</div>}
-                      {onlyMe    && <div style={{ fontSize: 9, color: C.green }}>🟢 Vous</div>}
-                      {onlyOther && <div style={{ fontSize: 9, color: C.blue }}>🔵 {otherProfile.name.split(' ')[0]}</div>}
+                      {bothFree     && <div style={{ fontSize: 9, color: C.purple, fontWeight: 700 }}>✨ {mySlotsLeft !== null || othSlotsLeft !== null ? `${Math.min(mySlotsLeft ?? 99, othSlotsLeft ?? 99)} place(s)` : 'Dispo'}</div>}
+                      {onlyThemBusy && <div style={{ fontSize: 9, color: C.amber, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {othBusyEntries[0] ? getPublicTitle(othBusyEntries[0]) : otherProfile.name.split(' ')[0]}
+                        {othBusyCount > 1 && ` +${othBusyCount - 1}`}
+                      </div>}
+                      {onlyMeBusy   && <div style={{ fontSize: 9, color: C.muted }}>🔒 Vous</div>}
+                      {bothBusy     && <div style={{ fontSize: 9, color: C.red }}>✕ Occupés</div>}
                     </div>
                   );
                 })}
@@ -573,13 +638,17 @@ export function CalendarView({ myId, profiles = [], onInvite }) {
                       {day}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {dayEvents.slice(0, 3).map(e => (
-                        <div key={e.id}
-                          style={{ background: getEventColor(e.event_type)+'33', borderLeft: '2px solid '+getEventColor(e.event_type), borderRadius: 3, padding: '1px 4px', fontSize: 10, color: getEventColor(e.event_type), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                          onClick={ev => { ev.stopPropagation(); setEditEvent(e); setFormDate(null); }}>
-                          {e.time_start && e.time_start.slice(0, 5) + ' '}{e.title}
-                        </div>
-                      ))}
+                      {dayEvents.slice(0, 3).map(e => {
+                        const ec = getEventColor(e.event_type);
+                        const isPublic = e.visibility === 'public';
+                        return (
+                          <div key={e.id}
+                            style={{ background: ec+(isPublic?'44':'22'), border: isPublic?'1px solid '+ec:'none', borderLeft: (isPublic?'3px':'2px')+' solid '+ec, borderRadius: 3, padding: '1px 4px', fontSize: 10, color: ec, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            onClick={ev => { ev.stopPropagation(); setEditEvent(e); setFormDate(null); }}>
+                            {isPublic && '🌐 '}{e.time_start && e.time_start.slice(0, 5) + ' '}{e.title}
+                          </div>
+                        );
+                      })}
                       {dayEvents.length > 3 && <div style={{ fontSize: 9, color: C.dim }}>+{dayEvents.length - 3} autres</div>}
                     </div>
                   </div>
@@ -593,26 +662,38 @@ export function CalendarView({ myId, profiles = [], onInvite }) {
           <div>
             {loading && <div style={{ color: C.dim, fontSize: 13, padding: '20px 0' }}>Chargement…</div>}
             {!loading && filtered.length === 0 && <div style={{ color: C.dim, fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Aucun événement ce mois</div>}
-            {filtered.map(e => (
-              <div key={e.id} onClick={() => { setEditEvent(e); setFormDate(null); }}
-                style={{ background: C.card, border: '1px solid '+C.border, borderLeft: '3px solid '+getEventColor(e.event_type), borderRadius: 9, padding: '11px 14px', marginBottom: 8, cursor: 'pointer', transition: 'all .15s' }}
-                onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
-                onMouseLeave={ev => ev.currentTarget.style.background = C.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: C.text }}>{e.title}</div>
-                  <span style={{ fontSize: 10, color: C.dim }}>{new Date(e.date_start).toLocaleDateString('fr', { day: 'numeric', month: 'short' })}</span>
+            {filtered.map(e => {
+              const ec = getEventColor(e.event_type);
+              const isPublic = e.visibility === 'public';
+              return (
+                <div key={e.id} onClick={() => { setEditEvent(e); setFormDate(null); }}
+                  style={{ background: C.card, border: '1px solid '+C.border, borderLeft: '3px solid '+ec, borderRadius: 9, padding: '11px 14px', marginBottom: 8, cursor: 'pointer', transition: 'all .15s' }}
+                  onMouseEnter={ev => ev.currentTarget.style.background = C.cardHov}
+                  onMouseLeave={ev => ev.currentTarget.style.background = C.card}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: C.text }}>{e.title}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {isPublic && <span style={{ background: C.green+'22', color: C.green, border: '1px solid '+C.green+'55', borderRadius: 20, padding: '1px 8px', fontSize: 10, fontWeight: 700 }}>🌐 Public</span>}
+                      <span style={{ fontSize: 10, color: C.dim }}>{new Date(e.date_start).toLocaleDateString('fr', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                  </div>
+                  {isPublic && (
+                    <div style={{ background: C.green+'11', border: '1px solid '+C.green+'33', borderRadius: 5, padding: '4px 8px', fontSize: 10, color: C.green, marginBottom: 7 }}>
+                      ⚠️ Visible par tous les utilisateurs de StageMap
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 10, fontSize: 11, color: C.muted }}>
+                    {e.time_start && <span>🕐 {e.time_start} – {e.time_end}</span>}
+                    {e.location && <span>📍 {e.location}</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
+                    <span style={{ background: ec+'22', color: ec, borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{EVENT_TYPES.find(t => t.k === e.event_type)?.l || e.event_type}</span>
+                    {e.recurrence !== 'none' && <span style={{ fontSize: 10, color: C.blue }}>🔄 {RECURRENCE.find(r => r.k === e.recurrence)?.l}</span>}
+                    {!isPublic && <span style={{ fontSize: 10, color: e.visibility === 'shared' ? C.blue : C.dim }}>{e.visibility === 'shared' ? '🔗 Partagé' : '🔒 Privé'}</span>}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10, fontSize: 11, color: C.muted }}>
-                  {e.time_start && <span>🕐 {e.time_start} – {e.time_end}</span>}
-                  {e.location && <span>📍 {e.location}</span>}
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
-                  <span style={{ background: getEventColor(e.event_type)+'22', color: getEventColor(e.event_type), borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{EVENT_TYPES.find(t => t.k === e.event_type)?.l || e.event_type}</span>
-                  {e.recurrence !== 'none' && <span style={{ fontSize: 10, color: C.blue }}>🔄 {RECURRENCE.find(r => r.k === e.recurrence)?.l}</span>}
-                  <span style={{ fontSize: 10, color: e.visibility === 'public' ? C.green : e.visibility === 'shared' ? C.blue : C.dim }}>{e.visibility === 'public' ? '🌐 Public' : e.visibility === 'shared' ? '🔗 Partagé' : '🔒 Privé'}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -637,6 +718,7 @@ export function CalendarView({ myId, profiles = [], onInvite }) {
       {showSearch && (
         <ProfileSearch
           profiles={profiles}
+          myId={myId}
           onSelect={p => { setCompareProfile(p); setShowSearch(false); }}
           onClose={() => setShowSearch(false)}
         />
