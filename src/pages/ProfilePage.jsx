@@ -117,6 +117,9 @@ export default function ProfilePage() {
     </div>
   );
 
+  const vis = profile.profile_visibility || {};
+  const show = (key) => vis[key] !== false;
+
   const links = (profile.links || []).filter(Boolean);
   const linkMetas = links.map(parseLinkMeta);
   const embeds = linkMetas.filter(m => m.type !== 'link');
@@ -153,26 +156,26 @@ export default function ProfilePage() {
             <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 700, color: C.cream, lineHeight: 1.1, marginBottom: 6 }}>{profile.name}</h1>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 6 }}>
               <span style={{ background: tc+'22', color: tc, border: '1px solid '+tc+'44', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>{typeLabels[profile.type]}</span>
-              {profile.available && <span style={{ color: C.green, fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, display: 'inline-block' }} />Disponible</span>}
+              {show('show_available') && profile.available && <span style={{ color: C.green, fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, display: 'inline-block' }} />Disponible</span>}
               {profile.verified && <span style={{ color: C.blue, fontSize: 11 }}>✓ Vérifié</span>}
             </div>
-            <div style={{ color: C.muted, fontSize: 12, marginBottom: 2 }}>{profile.genre}</div>
-            <div style={{ color: C.dim, fontSize: 11 }}>📍 {profile.region}{profile.country ? ', ' + profile.country : ''}</div>
+            {show('show_genre') && <div style={{ color: C.muted, fontSize: 12, marginBottom: 2 }}>{profile.genre}</div>}
+            {show('show_region') && <div style={{ color: C.dim, fontSize: 11 }}>📍 {profile.region}{profile.country ? ', ' + profile.country : ''}</div>}
           </div>
         </div>
 
-        {profile.bio && (
+        {show('show_bio') && profile.bio && (
           <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.7, marginBottom: 24, padding: '14px 16px', background: C.card, borderRadius: 10, border: '1px solid '+C.border }}>
             {profile.bio}
           </p>
         )}
 
-        {profile.fee && (
+        {show('show_fee') && profile.fee && (
           <div style={{ color: C.amber, fontSize: 13, marginBottom: 20 }}>💰 {profile.fee}</div>
         )}
 
         {/* Media embeds */}
-        {embeds.length > 0 && (
+        {show('show_links') && embeds.length > 0 && (
           <div style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 2 }}>Musique & Médias</div>
             {embeds.map((m, i) => (
@@ -211,7 +214,7 @@ export default function ProfilePage() {
         )}
 
         {/* Social / link buttons */}
-        {linkButtons.length > 0 && (
+        {show('show_links') && linkButtons.length > 0 && (
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>Liens</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -228,7 +231,7 @@ export default function ProfilePage() {
         )}
 
         {/* Upcoming public events */}
-        {events.length > 0 && (
+        {show('show_events') && events.length > 0 && (
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>Événements à venir</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

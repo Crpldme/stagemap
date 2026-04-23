@@ -791,126 +791,182 @@ function PromoModule({ myProfile, isSubscribed }) {
 /* ── My Profile Tab ── */
 function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAddProfile, isSubscribed }) {
   const { updateUserProfile } = useStore();
-  const [editing, setEditing] = useState(false);
-  const [p, setP] = useState({ ...profile, links: Array.isArray(profile.links)?profile.links.join(', '):profile.links||'' });
+  const [p, setP] = useState({
+    ...profile,
+    links: Array.isArray(profile.links) ? profile.links.join(', ') : profile.links || '',
+    profile_visibility: profile.profile_visibility || {},
+  });
   const [loading, setLoading] = useState(false);
-  const set = (k,v) => setP(prev=>({...prev,[k]:v}));
+  const [saved, setSaved] = useState(false);
+  const set = (k, v) => setP(prev => ({ ...prev, [k]: v }));
+  const setVis = (k, v) => setP(prev => ({ ...prev, profile_visibility: { ...prev.profile_visibility, [k]: v } }));
 
   const save = async () => {
     setLoading(true);
     try {
-      const coords = REGION_COORDS[p.region]||{lat:p.lat,lng:p.lng};
+      const coords = REGION_COORDS[p.region] || { lat: p.lat, lng: p.lng };
       const updated = await upsertProfile({
         ...p,
-        links: p.links?p.links.split(',').map(l=>l.trim()).filter(Boolean):[],
-        lat: coords.lat+(Math.random()-.5)*.2,
-        lng: coords.lng+(Math.random()-.5)*.2,
+        links: p.links ? p.links.split(',').map(l => l.trim()).filter(Boolean) : [],
+        lat: coords.lat + (Math.random() - .5) * .2,
+        lng: coords.lng + (Math.random() - .5) * .2,
       });
       updateUserProfile(updated);
       setProfile(updated);
-      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
       toast.success('Profil mis à jour ✓');
     } catch(e) { toast.error(e.message); }
     setLoading(false);
   };
 
-  if (editing) return (
-    <div style={{maxWidth:560}} className='fade-in'>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>Modifier mon profil</div>
-        <Btn v='ghost' sz='sm' onClick={()=>setEditing(false)}>✕ Annuler</Btn>
-      </div>
-      <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:16,padding:24,display:'flex',flexDirection:'column',gap:13}}>
-        <div>
-          <div style={{fontSize:10,color:C.dim,letterSpacing:1,textTransform:'uppercase',marginBottom:7}}>Avatar</div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-            {AVATARS.map(a=><button key={a} onClick={()=>set('avatar',a)} style={{fontSize:20,width:38,height:38,background:p.avatar===a?C.orange+'33':C.tag,border:'1px solid '+(p.avatar===a?C.orange:C.border),borderRadius:7,cursor:'pointer'}}>{a}</button>)}
-          </div>
-        </div>
-        {[{l:'Nom artistique',k:'name'},{l:'Genre',k:'genre',sel:GENRES},{l:'Bio',k:'bio',ml:true},{l:'Cachet / Tarif',k:'fee'},{l:'Liens (séparés par virgule)',k:'links'}].map(f=>(
-          <div key={f.k}>
-            <div style={{fontSize:10,color:C.dim,letterSpacing:1,textTransform:'uppercase',marginBottom:5}}>{f.l}</div>
-            {f.sel?<Sel value={p[f.k]||''} onChange={v=>set(f.k,v)} options={f.sel}/>:<Inp value={p[f.k]||''} onChange={v=>set(f.k,v)} placeholder={f.l+'...'} ml={f.ml} rows={2}/>}
-          </div>
-        ))}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <div>
-            <div style={{fontSize:10,color:C.dim,letterSpacing:1,textTransform:'uppercase',marginBottom:5}}>Région</div>
-            <Sel value={p.region||'Montréal'} onChange={v=>set('region',v)} options={Object.keys(REGION_COORDS)}/>
-          </div>
-          <div>
-            <div style={{fontSize:10,color:C.dim,letterSpacing:1,textTransform:'uppercase',marginBottom:5}}>Pays</div>
-            <Sel value={p.country||'Canada'} onChange={v=>set('country',v)} options={['Canada','France','Belgique','Suisse','Allemagne','Espagne','Pays-Bas','Autre']}/>
-          </div>
-        </div>
-        <label style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
-          <input type='checkbox' checked={p.available} onChange={e=>set('available',e.target.checked)} style={{accentColor:C.orange,width:16,height:16}}/>
-          <span style={{fontSize:13,color:C.text}}>Disponible pour booking</span>
-        </label>
-        <Btn onClick={save} disabled={loading} sz='lg'>{loading?<Spinner/>:'💾 Sauvegarder'}</Btn>
-      </div>
-    </div>
-  );
+  const vis = p.profile_visibility || {};
+  const visFields = [
+    { k:'show_bio',       label:'Biographie',            icon:'📝' },
+    { k:'show_fee',       label:'Tarif / Cachet',         icon:'💰' },
+    { k:'show_links',     label:'Liens & Médias',         icon:'🔗' },
+    { k:'show_genre',     label:'Genre musical',          icon:'🎼' },
+    { k:'show_region',    label:'Région & Pays',          icon:'📍' },
+    { k:'show_available', label:'Statut disponible',      icon:'✅' },
+    { k:'show_events',    label:'Événements à venir',     icon:'📅' },
+  ];
 
   return (
-    <div style={{maxWidth:600}} className='fade-in'>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>Mon profil actif</div>
-        <div style={{display:'flex',gap:8}}>
-          <Btn v='secondary' sz='sm' onClick={()=>setEditing(true)}>✏️ Modifier</Btn>
+    <div style={{ maxWidth:680, display:'flex', flexDirection:'column', gap:16 }} className='fade-in'>
+
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:C.cream, fontWeight:700 }}>Mon Profil</div>
+        <div style={{ display:'flex', gap:8 }}>
+          <Btn v='secondary' sz='sm' onClick={() => window.open('/profile/'+profile.id, '_blank')}>🌐 Page publique</Btn>
           <Btn v='ghost' sz='sm' onClick={onLogout}>Déconnexion</Btn>
         </div>
       </div>
-      <div style={{background:C.card,border:'1px solid '+C.orange+'44',borderRadius:16,padding:24,marginBottom:16}}>
-        <div style={{display:'flex',gap:16,marginBottom:16}}>
-          <div style={{fontSize:48,width:72,height:72,background:C.tag,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid '+C.orange}}>{profile.avatar||'🎵'}</div>
-          <div style={{flex:1}}>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:700,marginBottom:4}}>{profile.name}</div>
-            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:6}}>
-              <Pill color={typeColors[profile.type]}>{typeLabels[profile.type]}</Pill>
-              {profile.available&&<span style={{color:C.green,fontSize:11}}>● Disponible</span>}
-              {isSubscribed&&<Pill color={C.glow}>✦ Abonné</Pill>}
-              {profile.verified&&<Pill color={C.blue}>✓ Vérifié</Pill>}
-            </div>
-            <div style={{color:C.muted,fontSize:12}}>📍 {profile.region}, {profile.country} · 🎼 {profile.genre}</div>
-            <div style={{color:C.dim,fontSize:11,marginTop:2}}>📧 {user.email}</div>
+
+      {/* Subscription badge */}
+      <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+        <Pill color={typeColors[profile.type]}>{typeLabels[profile.type]}</Pill>
+        {isSubscribed && <Pill color={C.glow}>✦ Abonné</Pill>}
+        {profile.verified && <Pill color={C.blue}>✓ Vérifié</Pill>}
+        <span style={{ fontSize:11, color:C.dim }}>📧 {user.email}</span>
+      </div>
+
+      {/* ── Profile fields ── */}
+      <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:16, padding:24, display:'flex', flexDirection:'column', gap:14 }}>
+        <div style={{ fontSize:10, color:C.dim, letterSpacing:1.5, textTransform:'uppercase' }}>Informations du profil</div>
+
+        <div>
+          <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:7 }}>Avatar</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
+            {AVATARS.map(a => (
+              <button key={a} onClick={() => set('avatar', a)}
+                style={{ fontSize:20, width:38, height:38, background:p.avatar===a?C.orange+'33':C.tag, border:'1px solid '+(p.avatar===a?C.orange:C.border), borderRadius:7, cursor:'pointer' }}>
+                {a}
+              </button>
+            ))}
           </div>
         </div>
-        {profile.bio&&<p style={{color:C.muted,fontSize:13,lineHeight:1.6,marginBottom:10}}>{profile.bio}</p>}
-        {profile.fee&&<div style={{color:C.amber,fontSize:13,marginBottom:8}}>💰 {profile.fee}</div>}
-        {profile.links&&profile.links?.length>0&&<div>{profile.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:5,marginBottom:5,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 8px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
-        <div style={{marginTop:12,background:C.orange+'11',border:'1px solid '+C.orange+'33',borderRadius:8,padding:10,fontSize:12,color:C.muted}}>
-          ✦ Votre profil est <strong style={{color:C.green}}>visible sur la carte</strong> et dans le répertoire.
+
+        {[
+          { l:'Nom artistique', k:'name' },
+          { l:'Genre',          k:'genre', sel:GENRES },
+          { l:'Biographie',     k:'bio',   ml:true },
+          { l:'Cachet / Tarif (ex: 500$, sur devis…)', k:'fee' },
+          { l:'Liens médias & réseaux (YouTube, Spotify, Instagram… séparés par virgule)', k:'links' },
+        ].map(f => (
+          <div key={f.k}>
+            <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>{f.l}</div>
+            {f.sel
+              ? <Sel value={p[f.k]||''} onChange={v => set(f.k, v)} options={f.sel}/>
+              : <Inp value={p[f.k]||''} onChange={v => set(f.k, v)} placeholder={f.l+'...'} ml={f.ml} rows={3}/>}
+          </div>
+        ))}
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div>
+            <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>Région</div>
+            <Sel value={p.region||'Montréal'} onChange={v => set('region', v)} options={Object.keys(REGION_COORDS)}/>
+          </div>
+          <div>
+            <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>Pays</div>
+            <Sel value={p.country||'Canada'} onChange={v => set('country', v)} options={['Canada','France','Belgique','Suisse','Allemagne','Espagne','Pays-Bas','Autre']}/>
+          </div>
+        </div>
+
+        <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+          <input type='checkbox' checked={!!p.available} onChange={e => set('available', e.target.checked)} style={{ accentColor:C.orange, width:16, height:16 }}/>
+          <span style={{ fontSize:13, color:C.text }}>Disponible pour booking</span>
+        </label>
+
+        <Btn onClick={save} disabled={loading} sz='lg'>
+          {loading ? <Spinner/> : saved ? '✓ Sauvegardé' : '💾 Sauvegarder les modifications'}
+        </Btn>
+      </div>
+
+      {/* ── Visibility controls ── */}
+      <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:16, padding:24 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+          <div>
+            <div style={{ fontSize:10, color:C.dim, letterSpacing:1.5, textTransform:'uppercase', marginBottom:4 }}>Visibilité de la page publique</div>
+            <div style={{ fontSize:12, color:C.muted }}>Choisissez ce que les visiteurs voient sur votre page</div>
+          </div>
+          <Btn v='ghost' sz='sm' onClick={() => window.open('/profile/'+profile.id, '_blank')}>Aperçu →</Btn>
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {visFields.map(({ k, label, icon }) => {
+            const isOn = vis[k] !== false;
+            return (
+              <div key={k} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:isOn?C.green+'0a':C.tag, border:'1px solid '+(isOn?C.green+'33':C.border), borderRadius:10, transition:'all .2s' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <span style={{ fontSize:15 }}>{icon}</span>
+                  <span style={{ fontSize:13, color:isOn?C.text:C.muted }}>{label}</span>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ fontSize:11, color:isOn?C.green:C.dim }}>{isOn?'Visible':'Masqué'}</span>
+                  <div onClick={() => setVis(k, !isOn)}
+                    style={{ width:40, height:22, borderRadius:11, background:isOn?C.green:C.border, cursor:'pointer', position:'relative', transition:'background .2s', flexShrink:0 }}>
+                    <div style={{ position:'absolute', top:3, left:isOn?21:3, width:16, height:16, borderRadius:'50%', background:'#fff', transition:'left .2s', boxShadow:'0 1px 4px #00000040' }}/>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop:14, fontSize:11, color:C.dim, lineHeight:1.7, background:C.tag, borderRadius:8, padding:'8px 12px' }}>
+          ℹ️ Nom, avatar et type de profil sont toujours visibles. Sauvegardez le profil après avoir modifié la visibilité.
         </div>
       </div>
 
-      {userProfiles && userProfiles?.length > 1 && (
-        <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:12,padding:18,marginBottom:16}}>
-          <div style={{fontWeight:700,color:C.text,marginBottom:12,fontSize:13}}>Mes autres profils</div>
-          {userProfiles.filter(p=>p.id!==profile.id).map(p=>(
-            <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid '+C.border+'44'}}>
-              <span style={{fontSize:22}}>{p.avatar}</span>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{p.name}</div>
-                <div style={{fontSize:11,color:C.muted}}>{typeLabels[p.type]} · {p.region}</div>
+      {/* ── Other profiles ── */}
+      {userProfiles && userProfiles.length > 1 && (
+        <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:12, padding:18 }}>
+          <div style={{ fontWeight:700, color:C.text, marginBottom:12, fontSize:13 }}>Mes autres profils</div>
+          {userProfiles.filter(up => up.id !== profile.id).map(up => (
+            <div key={up.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid '+C.border+'44' }}>
+              <span style={{ fontSize:22 }}>{up.avatar}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:C.text }}>{up.name}</div>
+                <div style={{ fontSize:11, color:C.muted }}>{typeLabels[up.type]} · {up.region}</div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <div style={{marginBottom:16}}>
-        <Btn v='secondary' onClick={onAddProfile} full>＋ Ajouter un profil</Btn>
-      </div>
+      <Btn v='secondary' onClick={onAddProfile} full>＋ Ajouter un profil</Btn>
 
-      {!isSubscribed&&<div style={{background:C.card,border:'1px solid '+C.border,borderRadius:12,padding:18}}>
-        <div style={{fontWeight:700,color:C.orange,marginBottom:6,fontSize:14}}>✦ Activer l'abonnement</div>
-        <div style={{color:C.muted,fontSize:12,marginBottom:14,lineHeight:1.7}}>Booking illimité · Streaming · Messagerie pro · IA Tournée · 1 boost publicitaire/mois</div>
-        <div style={{display:'flex',gap:10}}>
-          <Btn onClick={()=>startSubscription('monthly',profile.id).catch(e=>toast.error(e.message))}>19$/mois</Btn>
-          <Btn v='secondary' onClick={()=>startSubscription('annual',profile.id).catch(e=>toast.error(e.message))}>149$/an (−22%)</Btn>
+      {!isSubscribed && (
+        <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:12, padding:18 }}>
+          <div style={{ fontWeight:700, color:C.orange, marginBottom:6, fontSize:14 }}>✦ Activer l'abonnement</div>
+          <div style={{ color:C.muted, fontSize:12, marginBottom:14, lineHeight:1.7 }}>Booking illimité · Streaming · Messagerie pro · IA Tournée · 1 boost publicitaire/mois</div>
+          <div style={{ display:'flex', gap:10 }}>
+            <Btn onClick={() => startSubscription('monthly', profile.id).catch(e => toast.error(e.message))}>19$/mois</Btn>
+            <Btn v='secondary' onClick={() => startSubscription('annual', profile.id).catch(e => toast.error(e.message))}>149$/an (−22%)</Btn>
+          </div>
         </div>
-      </div>}
+      )}
     </div>
   );
 }
