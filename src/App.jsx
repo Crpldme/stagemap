@@ -8,6 +8,7 @@ import { supabase, getUserProfiles, onAuthChange } from './lib/supabase';
 import AuthPage    from './pages/AuthPage';
 import OnboardPage from './pages/OnboardPage';
 import Dashboard   from './pages/Dashboard';
+import ProfilePage from './pages/ProfilePage';
 
 const GF = `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');`;
 
@@ -94,6 +95,7 @@ const loadUserProfiles = async (user) => {
           <Route path="/dashboard" element={
             <RequireAuth><Dashboard /></RequireAuth>
           } />
+          <Route path="/profile/:id" element={<ProfilePage />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

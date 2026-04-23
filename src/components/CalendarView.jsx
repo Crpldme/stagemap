@@ -709,10 +709,10 @@ export function CalendarView({ myId, profiles = [], onInvite }) {
 
       <div style={{ marginTop: 16, background: C.card, border: '1px solid '+C.border, borderRadius: 10, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2 }}>🔗 Partager mon calendrier public</div>
-          <div style={{ fontSize: 11, color: C.dim }}>stagemap.io/cal/{myId?.slice(0, 8)}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2 }}>🔗 Partager mon profil public</div>
+          <div style={{ fontSize: 11, color: C.dim }}>{window.location.origin}/profile/{myId}</div>
         </div>
-        <Btn v='ghost' sz='sm' onClick={() => { navigator.clipboard.writeText('stagemap.io/cal/' + myId?.slice(0, 8)); toast.success('Lien copié !'); }}>Copier</Btn>
+        <Btn v='ghost' sz='sm' onClick={() => { navigator.clipboard.writeText(window.location.origin + '/profile/' + myId); toast.success('Lien copié !'); }}>Copier</Btn>
       </div>
 
       {showSearch && (

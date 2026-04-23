@@ -347,12 +347,16 @@ function ProfileModal({ a, myId, onClose, onChat, onInvite }) {
         {a.fee&&<div style={{color:C.amber,fontSize:12,marginBottom:8}}>💰 {a.fee}</div>}
         {a.rating>0&&<div style={{marginBottom:10}}><Stars r={a.rating}/> <span style={{color:C.dim,fontSize:11}}>({a.rating_count} avis)</span></div>}
         {a.links&&a.links?.length>0&&<div style={{marginBottom:14}}>{a.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:4,marginBottom:4,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 7px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
-        {!isMe&&<div style={{display:'flex',gap:8}}>
+        {!isMe&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           <Btn onClick={()=>{onChat(a);onClose();}}>💬 Contacter</Btn>
           <Btn v="secondary" onClick={()=>{onInvite(a);onClose();}}>🗺️ Inviter tournée</Btn>
+          <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }}>🌐 Page</Btn>
           <Btn v="ghost" onClick={onClose}>✕</Btn>
         </div>}
-        {isMe&&<Btn v="ghost" onClick={onClose} full>Fermer</Btn>}
+        {isMe&&<div style={{display:'flex',gap:8}}>
+          <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }} full>🌐 Voir ma page publique</Btn>
+          <Btn v="ghost" onClick={onClose}>Fermer</Btn>
+        </div>}
       </div>
     </div>
   );
