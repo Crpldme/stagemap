@@ -1196,7 +1196,7 @@ export default function Dashboard() {
           } catch(e) { toast.error('Erreur : '+e.message); }
         }}/>}
         {tab==='inbox'&&<InboxView messages={messages} myId={user?.id} profiles={profiles} onChat={openChat} onRefresh={()=>getMessages(user.id).then(setMessages)}/>}
-        {tab==='cal'&&<CalendarView myId={profile?.id} profiles={profiles} onInvite={(p, date) => { setInviteTarget(p); }} />}
+        {tab==='cal'&&<CalendarView myId={profile?.id} profiles={profiles} myProfile={profile} onInvite={(p, date) => { setInviteTarget(p); }} />}
         {tab==='promo'&&<PromoModule myProfile={profile} isSubscribed={isSubscribed}/>}
         {tab==='me'&&profile&&<MyProfileTab profile={profile} userProfiles={userProfiles||[profile]} setProfile={setProfile} user={user} onLogout={handleLogout} onAddProfile={handleAddProfile} isSubscribed={isSubscribed}/>}
       </main>

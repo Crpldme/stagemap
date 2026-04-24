@@ -58,6 +58,28 @@ function parseLinkMeta(raw) {
   }
 }
 
+function generateEventPost(ev, profile, profileUrl) {
+  const dateStr = new Date(ev.date_start).toLocaleDateString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = ev.time_start ? `${ev.time_start}${ev.time_end ? ' – ' + ev.time_end : ''}` : null;
+  const slug = s => s?.replace(/[\s/,&]+/g, '') || '';
+  const hashtags = ['#StageMap', profile?.genre ? '#' + slug(profile.genre) : '#LiveMusic', profile?.region ? '#' + slug(profile.region) : null, '#Concert'].filter(Boolean).join(' ');
+  return [
+    `🎭 ${ev.title}`,
+    '',
+    `📅 ${dateStr}`,
+    timeStr ? `⏰ ${timeStr}` : null,
+    ev.location ? `📍 ${ev.location}` : null,
+    profile?.name ? `🎵 ${profile.name}${profile.region ? ' · ' + profile.region : ''}` : null,
+    profile?.genre ? `🎼 ${profile.genre}` : null,
+    '',
+    ev.description ? ev.description : null,
+    '',
+    `Réservez sur StageMap 👉 ${profileUrl}`,
+    '',
+    hashtags,
+  ].filter(l => l !== null).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 export default function ProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -66,6 +88,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [selectedEv, setSelectedEv] = useState(null);
+  const [copiedAnnonce, setCopiedAnnonce] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -298,9 +321,35 @@ export default function ProfilePage() {
                 </p>
               )}
 
-              <a href='/dashboard' style={{ display: 'block', textAlign: 'center', background: 'linear-gradient(135deg,'+C.purple+',#8030cc)', color: '#fff', borderRadius: 9, padding: '10px 0', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-                Rejoindre StageMap pour réserver →
-              </a>
+              <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
+                <button
+                  onClick={() => {
+                    const post = generateEventPost(selectedEv, profile, window.location.href);
+                    navigator.clipboard.writeText(post);
+                    setCopiedAnnonce(true);
+                    setTimeout(() => setCopiedAnnonce(false), 2500);
+                  }}
+                  style={{ width:'100%', padding:'10px 0', background:copiedAnnonce?C.green+'22':'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', color:copiedAnnonce?C.green:'#fff', border:'1px solid '+(copiedAnnonce?C.green+'55':'transparent'), borderRadius:9, fontFamily:"'Outfit',sans-serif", fontWeight:600, fontSize:13, cursor:'pointer', transition:'all .2s' }}>
+                  {copiedAnnonce ? '✓ Annonce copiée !' : "📋 Copier l'annonce"}
+                </button>
+                <div style={{ display:'flex', gap:8 }}>
+                  {[
+                    { label:'𝕏', url:`https://twitter.com/intent/tweet?text=${encodeURIComponent(generateEventPost(selectedEv, profile, window.location.href))}`, color:'#1da1f2' },
+                    { label:'💬', url:`https://wa.me/?text=${encodeURIComponent(generateEventPost(selectedEv, profile, window.location.href))}`, color:'#25d366' },
+                    { label:'📘', url:`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, color:'#1877f2' },
+                  ].map(p => (
+                    <a key={p.label} href={p.url} target='_blank' rel='noreferrer'
+                      style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'8px 0', background:p.color+'18', border:'1px solid '+p.color+'44', borderRadius:8, color:p.color, fontSize:14, textDecoration:'none', transition:'all .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = p.color+'30'}
+                      onMouseLeave={e => e.currentTarget.style.background = p.color+'18'}>
+                      {p.label}
+                    </a>
+                  ))}
+                </div>
+                <a href='/dashboard' style={{ display:'block', textAlign:'center', background:'linear-gradient(135deg,'+C.purple+',#8030cc)', color:'#fff', borderRadius:9, padding:'9px 0', fontSize:12, fontWeight:600, textDecoration:'none' }}>
+                  Rejoindre StageMap pour réserver →
+                </a>
+              </div>
             </div>
           </div>
         )}

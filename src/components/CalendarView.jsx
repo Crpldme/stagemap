@@ -145,7 +145,7 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
         if (error) throw error;
         toast.success('Événement ajouté ✓');
       }
-      onSave();
+      onSave(entry);
     } catch (e) {
       toast.error(e.message);
     }
@@ -530,10 +530,89 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
   );
 }
 
+/* ── Share Event Modal ── */
+function ShareEventModal({ event, profileUrl, profileName, profileGenre, profileRegion, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  const dateStr = new Date(event.date_start).toLocaleDateString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = event.time_start ? `${event.time_start}${event.time_end ? ' – ' + event.time_end : ''}` : null;
+  const slug = s => s?.replace(/[\s/,&]+/g, '') || '';
+  const hashtags = ['#StageMap', profileGenre ? '#' + slug(profileGenre) : '#LiveMusic', profileRegion ? '#' + slug(profileRegion) : null, '#Concert', '#Live'].filter(Boolean).join(' ');
+
+  const post = [
+    `🎭 ${event.title}`,
+    '',
+    `📅 ${dateStr}`,
+    timeStr ? `⏰ ${timeStr}` : null,
+    event.location ? `📍 ${event.location}` : null,
+    profileName ? `🎵 ${profileName}${profileRegion ? ' · ' + profileRegion : ''}` : null,
+    profileGenre ? `🎼 ${profileGenre}` : null,
+    '',
+    event.description ? event.description : null,
+    '',
+    `Réservez sur StageMap 👉 ${profileUrl}`,
+    '',
+    hashtags,
+  ].filter(l => l !== null).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+
+  const enc = encodeURIComponent(post);
+  const urlEnc = encodeURIComponent(profileUrl);
+  const platforms = [
+    { label: '𝕏 Twitter',  url: `https://twitter.com/intent/tweet?text=${enc}`,                                                           color: '#1da1f2' },
+    { label: '💬 WhatsApp', url: `https://wa.me/?text=${enc}`,                                                                             color: '#25d366' },
+    { label: '📘 Facebook', url: `https://www.facebook.com/sharer/sharer.php?u=${urlEnc}`,                                                 color: '#1877f2' },
+    { label: '💼 LinkedIn', url: `https://www.linkedin.com/shareArticle?mini=true&url=${urlEnc}&title=${encodeURIComponent(event.title)}`,  color: '#0a66c2' },
+  ];
+
+  const copy = () => {
+    navigator.clipboard.writeText(post);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+    toast.success('Annonce copiée !');
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'#00000095', zIndex:4000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background:C.bg2, border:'1px solid '+C.border, borderRadius:16, maxWidth:500, width:'100%', maxHeight:'90vh', overflow:'auto', boxShadow:'0 40px 100px #00000090' }}>
+        <div style={{ padding:'15px 22px', borderBottom:'1px solid '+C.border, background:C.card, display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ flex:1, fontFamily:"'Cormorant Garamond',serif", fontSize:17, fontWeight:700, color:C.cream }}>📢 Partager l'événement</div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:C.dim, cursor:'pointer', fontSize:16 }}>✕</button>
+        </div>
+        <div style={{ padding:'18px 22px', display:'flex', flexDirection:'column', gap:14 }}>
+          <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>Copiez cette annonce et collez-la sur vos réseaux, ou cliquez un bouton pour partager directement.</div>
+
+          <textarea readOnly value={post} rows={11}
+            style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:8, padding:'12px 14px', color:C.text, fontFamily:'monospace', fontSize:12, lineHeight:1.7, resize:'none', width:'100%', outline:'none' }} />
+
+          <button onClick={copy}
+            style={{ width:'100%', padding:'11px 0', background:copied?C.green+'22':'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', color:copied?C.green:'#fff', border:'1px solid '+(copied?C.green+'55':'transparent'), borderRadius:9, fontFamily:"'Outfit',sans-serif", fontWeight:600, fontSize:14, cursor:'pointer', transition:'all .2s' }}>
+            {copied ? '✓ Annonce copiée !' : "📋 Copier l'annonce"}
+          </button>
+
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            {platforms.map(p => (
+              <a key={p.label} href={p.url} target='_blank' rel='noreferrer'
+                style={{ flex:1, minWidth:110, display:'flex', alignItems:'center', justifyContent:'center', padding:'8px 0', background:p.color+'18', border:'1px solid '+p.color+'44', borderRadius:8, color:p.color, fontSize:12, fontWeight:600, textDecoration:'none', fontFamily:"'Outfit',sans-serif", transition:'all .15s' }}
+                onMouseEnter={e => e.currentTarget.style.background = p.color+'30'}
+                onMouseLeave={e => e.currentTarget.style.background = p.color+'18'}>
+                {p.label}
+              </a>
+            ))}
+          </div>
+
+          <div style={{ fontSize:10, color:C.dim, textAlign:'center' }}>
+            Instagram et TikTok ne supportent pas le partage direct — utilisez "Copier" puis collez dans votre publication.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════
    MAIN CalendarView
 ══════════════════════════════════ */
-export function CalendarView({ myId, profiles = [], onInvite }) {  
+export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
   const today = new Date();
   const [year, setYear]               = useState(today.getFullYear());
   const [month, setMonth]             = useState(today.getMonth());
@@ -546,6 +625,7 @@ export function CalendarView({ myId, profiles = [], onInvite }) {
   const [filterType, setFilterType]   = useState('all');
   const [showSearch, setShowSearch]   = useState(false);
   const [compareProfile, setCompareProfile] = useState(null);
+  const [shareEvent, setShareEvent]   = useState(null);
 
   const loadEntries = async () => {
     setLoading(true);
@@ -678,8 +758,12 @@ export function CalendarView({ myId, profiles = [], onInvite }) {
                     </div>
                   </div>
                   {isPublic && (
-                    <div style={{ background: C.green+'11', border: '1px solid '+C.green+'33', borderRadius: 5, padding: '4px 8px', fontSize: 10, color: C.green, marginBottom: 7 }}>
-                      ⚠️ Visible par tous les utilisateurs de StageMap
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background: C.green+'11', border: '1px solid '+C.green+'33', borderRadius: 5, padding: '4px 8px', marginBottom: 7 }}>
+                      <span style={{ fontSize: 10, color: C.green }}>⚠️ Visible par tous les utilisateurs de StageMap</span>
+                      <button onClick={ev => { ev.stopPropagation(); setShareEvent(e); }}
+                        style={{ background:C.orange+'22', border:'1px solid '+C.orange+'44', borderRadius:5, color:C.orange, fontSize:10, fontWeight:600, padding:'2px 8px', cursor:'pointer', fontFamily:"'Outfit',sans-serif", flexShrink:0 }}>
+                        📢 Partager
+                      </button>
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 10, fontSize: 11, color: C.muted }}>
@@ -738,9 +822,23 @@ export function CalendarView({ myId, profiles = [], onInvite }) {
           date={formDate}
           event={editEvent}
           myId={myId}
-          onSave={() => { setFormDate(null); setEditEvent(null); loadEntries(); }}
+          onSave={(entry) => {
+            setFormDate(null); setEditEvent(null); loadEntries();
+            if (entry?.visibility === 'public') setShareEvent(entry);
+          }}
           onDelete={() => { setFormDate(null); setEditEvent(null); loadEntries(); }}
           onClose={() => { setFormDate(null); setEditEvent(null); }}
+        />
+      )}
+
+      {shareEvent && (
+        <ShareEventModal
+          event={shareEvent}
+          profileUrl={`${window.location.origin}/profile/${myId}`}
+          profileName={myProfile?.name}
+          profileGenre={myProfile?.genre}
+          profileRegion={myProfile?.region}
+          onClose={() => setShareEvent(null)}
         />
       )}
     </div>
