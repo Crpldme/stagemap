@@ -338,7 +338,7 @@ function ProfileSearch({ profiles, myId, onSelect, onClose }) {
   const filtered = profiles.filter(p =>
     p.id !== myId &&
     (p.name + p.genre + p.region).toLowerCase().includes(q.toLowerCase())
-  ).slice(0, 8);
+  ).slice(0, 20);
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#00000090', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>

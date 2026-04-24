@@ -10,7 +10,8 @@ export const supabase = createClient(
       persistSession: true,
       detectSessionInUrl: true,
     },
-realtime: { params: { eventsPerSecond: 2 } },  }
+    realtime: { params: { eventsPerSecond: 10 } },
+  }
 );
 
 // ── Auth helpers ─────────────────────────────────────────────

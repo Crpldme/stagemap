@@ -90,7 +90,7 @@ export default function ProfilePage() {
         .eq('user_id', id).eq('visibility', 'public')
         .gt('date_start', new Date().toISOString())
         .order('date_start', { ascending: true })
-        .limit(6);
+        .limit(20);
       setEvents(evs || []);
       setLoading(false);
     };

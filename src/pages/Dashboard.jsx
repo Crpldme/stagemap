@@ -80,7 +80,7 @@ function Btn({ children, onClick, v='primary', sz='md', disabled, full, style:s=
   }[v];
   return <button onClick={onClick} disabled={disabled} style={{...base,...sizes,...vars}}>{children}</button>;
 }
-function Inp({ value, onChange, placeholder, style:s={}, ml, rows=3 }) {
+function Inp({ value, onChange, placeholder, style:s={}, ml, rows=5 }) {
   const base = { background:C.tag, border:'1px solid '+C.border, borderRadius:8, padding:'8px 12px', color:C.text, fontFamily:"'Outfit',sans-serif", fontSize:13, outline:'none', width:'100%', ...s };
   return ml ? <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{...base,resize:'vertical'}}/> : <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={base}/>;
 }
@@ -182,7 +182,7 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
             const isMe = myProfile && a.id === myProfile.id;
             const isH = hov === a.id;
             const size = isH ? 46 : isMe ? 40 : 34;
-            const venueEvts = a.type === 'venue' ? allEvents.filter(ev => ev.user_id === a.id).slice(0, 4) : [];
+            const venueEvts = a.type === 'venue' ? allEvents.filter(ev => ev.user_id === a.id).slice(0, 6) : [];
             return (
               <Marker key={a.id} longitude={a.lng} latitude={a.lat} anchor="center" onClick={e=>{ e.originalEvent.stopPropagation(); setPopup(a); }}>
                 <div onMouseEnter={()=>setHov(a.id)} onMouseLeave={()=>setHov(null)} style={{ position:'relative', cursor:'pointer', transition:'all .2s', zIndex:isH?20:isMe?15:10 }}>
@@ -249,7 +249,7 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
                 {popup.type === 'venue' && allEvents.filter(ev=>ev.user_id===popup.id).length > 0 && (
                   <div style={{ marginBottom:8 }}>
                     <div style={{ fontSize:9, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>📅 Événements à venir</div>
-                    {allEvents.filter(ev=>ev.user_id===popup.id).slice(0,5).map(ev=>(
+                    {allEvents.filter(ev=>ev.user_id===popup.id).slice(0,8).map(ev=>(
                       <div key={ev.id} style={{ background:C.purple+'11', border:'1px solid '+C.purple+'33', borderRadius:5, padding:'3px 8px', fontSize:10, color:C.purple, marginBottom:3, display:'flex', justifyContent:'space-between', gap:6 }}>
                         <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ev.title}</span>
                         <span style={{ color:C.dim, flexShrink:0 }}>{new Date(ev.date_start).toLocaleDateString('fr',{day:'numeric',month:'short'})}</span>
