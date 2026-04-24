@@ -65,6 +65,7 @@ export default function ProfilePage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [selectedEv, setSelectedEv] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -236,19 +237,70 @@ export default function ProfilePage() {
             <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>Événements à venir</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {events.map(ev => (
-                <div key={ev.id} style={{ background: C.card, border: '1px solid '+C.border, borderLeft: '3px solid '+C.purple, borderRadius: 9, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                  <div>
+                <div key={ev.id} onClick={() => setSelectedEv(ev)}
+                  style={{ background: C.card, border: '1px solid '+C.border, borderLeft: '3px solid '+C.purple, borderRadius: 9, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'all .15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.cardHov; e.currentTarget.style.borderColor = C.purple+'88'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = C.card; e.currentTarget.style.borderColor = C.border; }}>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: C.text, marginBottom: 2 }}>{ev.title}</div>
-                    {ev.description && <div style={{ fontSize: 11, color: C.dim }}>{ev.description}</div>}
+                    {ev.description && <div style={{ fontSize: 11, color: C.dim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.description}</div>}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 12, color: C.amber, fontWeight: 600 }}>
                       {new Date(ev.date_start).toLocaleDateString('fr', { day: 'numeric', month: 'short' })}
                     </div>
                     {ev.time_start && <div style={{ fontSize: 10, color: C.dim }}>{ev.time_start}</div>}
+                    <div style={{ fontSize: 9, color: C.purple, marginTop: 2 }}>Voir →</div>
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Event detail modal */}
+        {selectedEv && (
+          <div style={{ position: 'fixed', inset: 0, background: '#00000090', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+            onClick={() => setSelectedEv(null)}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: C.bg2, border: '1px solid '+C.purple+'66', borderRadius: 16, maxWidth: 440, width: '100%', padding: 28, boxShadow: '0 40px 100px #00000090', fontFamily: "'Outfit', sans-serif" }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+                <span style={{ background: C.purple+'22', color: C.purple, border: '1px solid '+C.purple+'44', borderRadius: 20, padding: '2px 10px', fontSize: 10, fontWeight: 600 }}>📅 Événement public</span>
+                <button onClick={() => setSelectedEv(null)} style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+              </div>
+
+              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 700, color: C.cream, marginBottom: 14, lineHeight: 1.2 }}>{selectedEv.title}</h2>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.text }}>
+                  <span style={{ fontSize: 16 }}>📅</span>
+                  <span>
+                    {new Date(selectedEv.date_start).toLocaleDateString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    {selectedEv.date_end && selectedEv.date_end !== selectedEv.date_start &&
+                      ' → ' + new Date(selectedEv.date_end).toLocaleDateString('fr', { day: 'numeric', month: 'long' })}
+                  </span>
+                </div>
+                {selectedEv.time_start && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.muted }}>
+                    <span style={{ fontSize: 16 }}>🕐</span>
+                    <span>{selectedEv.time_start}{selectedEv.time_end ? ' – ' + selectedEv.time_end : ''}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.muted }}>
+                  <span style={{ fontSize: 16 }}>🎭</span>
+                  <span>{profile.name} · {profile.region}</span>
+                </div>
+              </div>
+
+              {selectedEv.description && (
+                <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 20, padding: '10px 14px', background: C.card, borderRadius: 8, border: '1px solid '+C.border }}>
+                  {selectedEv.description}
+                </p>
+              )}
+
+              <a href='/dashboard' style={{ display: 'block', textAlign: 'center', background: 'linear-gradient(135deg,'+C.purple+',#8030cc)', color: '#fff', borderRadius: 9, padding: '10px 0', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                Rejoindre StageMap pour réserver →
+              </a>
             </div>
           </div>
         )}
