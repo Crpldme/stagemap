@@ -1189,7 +1189,7 @@ export default function Dashboard() {
                 const p=ev.profile;
                 const ec=ev.event_type==='booking'?C.amber:ev.event_type==='event'?C.orange:C.muted;
                 return (
-                  <div key={ev.id} onClick={()=>p&&navigate('/profile/'+p.id+'?event='+ev.id)}
+                  <div key={ev.id} onClick={()=>navigate('/profile/'+ev.user_id+'?event='+ev.id)}
                     style={{background:C.card,border:'1px solid '+C.purple+'44',borderLeft:'3px solid '+C.purple,borderRadius:9,padding:'12px 14px',cursor:'pointer',transition:'all .15s'}}
                     onMouseEnter={e=>e.currentTarget.style.background=C.cardHov}
                     onMouseLeave={e=>e.currentTarget.style.background=C.card}>
