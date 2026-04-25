@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useStore } from '../lib/store';
 import { createProfile, getUserProfiles } from '../lib/supabase';
+import { useT } from '../lib/i18n';
 
 const C = {
   bg:"#140c00", card:"#271500", border:"#3d2200", tag:"#2a1600",
@@ -13,7 +14,7 @@ const C = {
 };
 
 const typeColors = { artist: C.orange, venue: C.brown, fan: C.brownLt };
-const typeLabels = { artist: 'Artiste', venue: 'Lieu', fan: 'Fan' };
+// typeLabels computed dynamically below via t()
 
 const REGION_COORDS = {
   'Montréal':{ lat:45.50, lng:-73.57 }, 'Québec':{ lat:46.82, lng:-71.22 },
@@ -55,6 +56,7 @@ function Sel({ value, onChange, options, style: s = {} }) {
 export default function OnboardPage() {
   const navigate = useNavigate();
   const { user, setProfile, setUserProfiles, addUserProfile, userProfiles } = useStore();
+  const t = useT();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [p, setP] = useState({
@@ -66,6 +68,7 @@ export default function OnboardPage() {
 
   // Vérifie si c'est un nouveau profil ou le premier
   const isAddingProfile = userProfiles && userProfiles.length > 0;
+  const typeLabels = { artist: t('type.artist'), venue: t('type.venue'), fan: t('type.fan') };
 
   const finish = async () => {
     if (!user) { toast.error('Session expirée, reconnectez-vous'); navigate('/auth'); return; }
@@ -110,14 +113,14 @@ export default function OnboardPage() {
 
   const steps = [
     {
-      title: isAddingProfile ? 'Quel type de profil ?' : 'Quel est votre rôle ?',
+      title: t('ob.type_title'),
       valid: true,
       content: (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           {[
-            { k: 'artist', l: 'Artiste', i: '🎵', d: 'Musicien, chanteur, DJ, comédien, danseur...' },
-            { k: 'venue',  l: 'Lieu',    i: '🏛️', d: 'Salle, club, théâtre, festival, studio...' },
-            { k: 'fan',    l: 'Fan',     i: '💛', d: 'Spectateur, organisateur, passionné...' },
+            { k: 'artist', l: t('type.artist'), i: '🎵', d: t('ob.artist_desc') },
+            { k: 'venue',  l: t('type.venue'),  i: '🏛️', d: t('ob.venue_desc') },
+            { k: 'fan',    l: t('type.fan'),    i: '💛', d: t('ob.fan_desc') },
           ].map(r => (
             <div key={r.k} onClick={() => set('type', r.k)}
               style={{ background: p.type === r.k ? typeColors[r.k] + '22' : C.tag, border: '2px solid ' + (p.type === r.k ? typeColors[r.k] : C.border), borderRadius: 12, padding: 16, cursor: 'pointer', textAlign: 'center', transition: 'all .2s' }}>
@@ -130,7 +133,7 @@ export default function OnboardPage() {
       ),
     },
     {
-      title: 'Votre identité',
+      title: t('me.artist_name'),
       valid: p.name.trim().length > 0,
       content: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -197,13 +200,13 @@ export default function OnboardPage() {
       <div style={{ width: '100%', maxWidth: 540 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: C.cream, fontWeight: 700 }}>
-            {isAddingProfile ? 'Ajouter un profil' : 'Créer votre profil'}
+            {isAddingProfile ? t('btn.add_profile') : t('ob.title')}
           </div>
-          <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Étape {step + 1} sur {steps.length}</div>
+          <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{t('ob.step', { n: step + 1 })}</div>
           {isAddingProfile && (
             <button onClick={() => navigate('/dashboard')}
               style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 12, fontFamily: "'Outfit',sans-serif", marginTop: 8 }}>
-              ← Retour au dashboard
+              {t('btn.back')} dashboard
             </button>
           )}
         </div>
@@ -221,17 +224,17 @@ export default function OnboardPage() {
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             {step > 0 && (
               <button onClick={() => setStep(s => s - 1)}
-                style={{ background: 'none', border: '1px solid ' + C.border, borderRadius: 8, padding: '9px 18px', color: C.muted, cursor: 'pointer', fontFamily: "'Outfit',sans-serif", fontSize: 13 }}>← Retour</button>
+                style={{ background: 'none', border: '1px solid ' + C.border, borderRadius: 8, padding: '9px 18px', color: C.muted, cursor: 'pointer', fontFamily: "'Outfit',sans-serif", fontSize: 13 }}>{t('btn.back')}</button>
             )}
             {step < steps.length - 1 ? (
               <button onClick={() => setStep(s => s + 1)} disabled={!steps[step].valid}
                 style={{ background: 'linear-gradient(135deg,' + C.orange + ',' + C.orangeLt + ')', border: 'none', borderRadius: 8, padding: '9px 18px', color: '#fff', cursor: steps[step].valid ? 'pointer' : 'not-allowed', fontWeight: 600, fontFamily: "'Outfit',sans-serif", fontSize: 13, opacity: steps[step].valid ? 1 : .5 }}>
-                Continuer →
+                {t('ob.next')}
               </button>
             ) : (
               <button onClick={finish} disabled={loading}
                 style={{ flex: 1, background: loading ? C.tag : 'linear-gradient(135deg,' + C.orange + ',' + C.orangeLt + ')', border: 'none', borderRadius: 10, padding: '13px 0', color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 700, fontFamily: "'Outfit',sans-serif", fontSize: 15, boxShadow: '0 4px 20px ' + C.orange + '44' }}>
-                {loading ? '⏳ Publication...' : '✦ Publier ce profil'}
+                {loading ? t('ob.saving') : '✦ ' + t('ob.create')}
               </button>
             )}
           </div>

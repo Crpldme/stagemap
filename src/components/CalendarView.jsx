@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { useT } from '../lib/i18n';
 
 const C = {
   bg:"#140c00", bg2:"#1e1100", card:"#271500", cardHov:"#301a00",
@@ -12,27 +13,19 @@ const C = {
   green:"#3ed870", red:"#ff5040", blue:"#40a8ff", purple:"#c060ff", tag:"#2a1600",
 };
 
-const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-const DAYS_FR = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-
-const EVENT_TYPES = [
-  { k:'availability', l:'🟢 Disponibilité', c:C.green },
-  { k:'event',        l:'🎵 Événement',     c:C.orange },
-  { k:'booking',      l:'📋 Booking',       c:C.amber },
-  { k:'personal',     l:'🔒 Personnel',     c:C.muted },
+const EVENT_TYPE_KEYS = [
+  { k:'availability', c:C.green },
+  { k:'event',        c:C.orange },
+  { k:'booking',      c:C.amber },
+  { k:'personal',     c:C.muted },
 ];
 
-const RECURRENCE = [
-  { k:'none',     l:'Aucune' },
-  { k:'weekly',   l:'Chaque semaine' },
-  { k:'biweekly', l:'Toutes les 2 semaines' },
-  { k:'monthly',  l:'Chaque mois' },
-];
+const RECURRENCE_KEYS = ['none','weekly','biweekly','monthly'];
 
-function getEventColor(type) { return EVENT_TYPES.find(e => e.k === type)?.c || C.orange; }
-function getPublicTitle(event) {
+function getEventColor(type) { return EVENT_TYPE_KEYS.find(e => e.k === type)?.c || C.orange; }
+function getPublicTitle(event, bookingLabel) {
   if (event.visibility === 'public') return event.title;
-  return '📋 Annonce de booking à venir';
+  return bookingLabel;
 }
 function getDaysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
 function getFirstDayOfMonth(year, month) { return new Date(year, month, 1).getDay(); }
@@ -76,7 +69,11 @@ function Btn({ children, onClick, v = 'primary', sz = 'md', disabled, full, styl
 
 /* ── Event Form Modal ── */
 function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
+  const t = useT();
   const isEdit = !!event;
+
+  const ET = EVENT_TYPE_KEYS.map(e => ({ ...e, l: t('cal.' + e.k) }));
+  const REC = RECURRENCE_KEYS.map(k => ({ k, l: t('cal.recurrence_' + k) }));
 
   const getDateStr = (isoStr) => {
     if (!isoStr) return '';
@@ -116,8 +113,8 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
   }, [form.event_type]);
 
   const save = async () => {
-    if (!form.title) { toast.error('Titre requis'); return; }
-    if (!form.date_start) { toast.error('Date de début requise'); return; }
+    if (!form.title) { toast.error(t('evf.title_req')); return; }
+    if (!form.date_start) { toast.error(t('evf.date_req')); return; }
     setLoading(true);
     try {
       const entry = {
@@ -139,11 +136,11 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
       if (isEdit) {
         const { error } = await supabase.from('calendar_entries').update(entry).eq('id', event.id);
         if (error) throw error;
-        toast.success('Événement mis à jour ✓');
+        toast.success(t('event_updated'));
       } else {
         const { error } = await supabase.from('calendar_entries').insert(entry);
         if (error) throw error;
-        toast.success('Événement ajouté ✓');
+        toast.success(t('event_added'));
       }
       onSave(entry);
     } catch (e) {
@@ -153,12 +150,12 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
   };
 
   const del = async () => {
-    if (!window.confirm('Supprimer cet événement ?')) return;
+    if (!window.confirm(t('confirm_delete'))) return;
     setLoading(true);
     try {
       const { error } = await supabase.from('calendar_entries').delete().eq('id', event.id);
       if (error) throw error;
-      toast.success('Événement supprimé');
+      toast.success(t('event_deleted'));
       onDelete();
     } catch (e) {
       toast.error(e.message);
@@ -166,72 +163,78 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
     setLoading(false);
   };
 
+  const visOpts = [
+    { k: 'private', l: t('evf.vis_private') },
+    { k: 'shared',  l: t('evf.vis_shared') },
+    { k: 'public',  l: t('evf.vis_public') },
+  ];
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#00000090', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: C.bg2, border: '1px solid '+C.border, borderRadius: 16, maxWidth: 500, width: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 40px 100px #00000090' }}>
         <div style={{ padding: '15px 22px', borderBottom: '1px solid '+C.border, background: C.card, display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: C.cream }}>
-            {isEdit ? "Modifier l'événement" : 'Nouvel événement'}
+            {isEdit ? t('evf.edit') : t('evf.new')}
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 16 }}>✕</button>
         </div>
         <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Type</div>
+            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>{t('evf.type')}</div>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-              {EVENT_TYPES.map(t => (
-                <button key={t.k} onClick={() => set('event_type', t.k)}
-                  style={{ background: form.event_type === t.k ? t.c+'22' : C.tag, border: '1px solid '+(form.event_type === t.k ? t.c : C.border), borderRadius: 20, padding: '4px 12px', cursor: 'pointer', fontSize: 11, color: form.event_type === t.k ? t.c : C.muted, fontFamily: "'Outfit',sans-serif", fontWeight: form.event_type === t.k ? 600 : 400 }}>
-                  {t.l}
+              {ET.map(et => (
+                <button key={et.k} onClick={() => set('event_type', et.k)}
+                  style={{ background: form.event_type === et.k ? et.c+'22' : C.tag, border: '1px solid '+(form.event_type === et.k ? et.c : C.border), borderRadius: 20, padding: '4px 12px', cursor: 'pointer', fontSize: 11, color: form.event_type === et.k ? et.c : C.muted, fontFamily: "'Outfit',sans-serif", fontWeight: form.event_type === et.k ? 600 : 400 }}>
+                  {et.l}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Titre *</div>
-            <Inp value={form.title} onChange={v => set('title', v)} placeholder={form.event_type === 'availability' ? 'Ex: Disponible pour concerts' : 'Ex: Concert au Café Scène'} />
+            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.title')} *</div>
+            <Inp value={form.title} onChange={v => set('title', v)} placeholder={form.event_type === 'availability' ? t('evf.ph_avail') : t('evf.ph_event')} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Date début</div>
+              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.date_start')}</div>
               <input type='date' value={form.date_start} onChange={e => set('date_start', e.target.value)} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: 'none', width: '100%' }} />
             </div>
             <div>
-              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Date fin</div>
+              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.date_end')}</div>
               <input type='date' value={form.date_end} onChange={e => set('date_end', e.target.value)} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: 'none', width: '100%' }} />
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Heure début</div>
+              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.time_start')}</div>
               <input type='time' value={form.time_start} onChange={e => set('time_start', e.target.value)} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: 'none', width: '100%' }} />
             </div>
             <div>
-              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Heure fin</div>
+              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.time_end')}</div>
               <input type='time' value={form.time_end} onChange={e => set('time_end', e.target.value)} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: 'none', width: '100%' }} />
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Lieu (optionnel)</div>
-            <Inp value={form.location} onChange={v => set('location', v)} placeholder='Ex: Le Café Scène, Montréal' />
+            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.location')}</div>
+            <Inp value={form.location} onChange={v => set('location', v)} placeholder={t('evf.ph_location')} />
           </div>
           <div>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Description (optionnel)</div>
-            <Inp value={form.description} onChange={v => set('description', v)} placeholder='Détails supplémentaires...' ml rows={2} />
+            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.desc')}</div>
+            <Inp value={form.description} onChange={v => set('description', v)} placeholder={t('evf.ph_desc')} ml rows={2} />
           </div>
           <div>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Récurrence</div>
-            <Sel value={form.recurrence} onChange={v => set('recurrence', v)} options={RECURRENCE} />
+            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.recurrence')}</div>
+            <Sel value={form.recurrence} onChange={v => set('recurrence', v)} options={REC} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Visibilité</div>
-              <Sel value={form.visibility} onChange={v => set('visibility', v)} options={[{ k: 'private', l: '🔒 Privé' }, { k: 'shared', l: '🔗 Partagé' }, { k: 'public', l: '🌐 Public' }]} />
+              <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.visibility')}</div>
+              <Sel value={form.visibility} onChange={v => set('visibility', v)} options={visOpts} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
                 <input type='checkbox' checked={form.notify_email} onChange={e => set('notify_email', e.target.checked)} style={{ accentColor: C.orange, width: 14, height: 14 }} />
-                <span style={{ fontSize: 12, color: C.text }}>📧 Notifier par courriel</span>
+                <span style={{ fontSize: 12, color: C.text }}>{t('evf.notify')}</span>
               </label>
             </div>
           </div>
@@ -239,17 +242,17 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
             <div style={{ background: C.green+'11', border: '1px solid '+C.green+'44', borderRadius: 8, padding: '10px 12px' }}>
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                 <input type='checkbox' checked={publicConfirmed} onChange={e => setPublicConfirmed(e.target.checked)} style={{ accentColor: C.green, width: 15, height: 15, marginTop: 1, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: C.green, lineHeight: 1.4 }}>
-                  ⚠️ Je confirme que cet événement sera <strong>visible par tous les utilisateurs</strong> de StageMap
-                </span>
+                <span style={{ fontSize: 12, color: C.green, lineHeight: 1.4 }}>{t('evf.confirm_public')}</span>
               </label>
             </div>
           )}
           <div style={{ display: 'flex', gap: 9, marginTop: 4 }}>
-            {isEdit && <Btn v='danger' sz='sm' onClick={del} disabled={loading}>🗑 Supprimer</Btn>}
+            {isEdit && <Btn v='danger' sz='sm' onClick={del} disabled={loading}>{t('evf.delete')}</Btn>}
             <div style={{ flex: 1 }} />
-            <Btn v='ghost' onClick={onClose}>Annuler</Btn>
-            <Btn onClick={save} disabled={loading || (form.visibility === 'public' && !publicConfirmed)}>{loading ? '⏳' : isEdit ? '💾 Sauvegarder' : '✦ Ajouter'}</Btn>
+            <Btn v='ghost' onClick={onClose}>{t('btn.cancel')}</Btn>
+            <Btn onClick={save} disabled={loading || (form.visibility === 'public' && !publicConfirmed)}>
+              {loading ? t('evf.saving') : isEdit ? t('evf.save') : t('evf.btn_add')}
+            </Btn>
           </div>
         </div>
       </div>
@@ -259,6 +262,9 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
 
 /* ── Day Detail Panel ── */
 function DayPanel({ date, events, onEdit, onClose, onNew, onRefresh }) {
+  const t = useT();
+  const ET = EVENT_TYPE_KEYS.map(e => ({ ...e, l: t('cal.' + e.k) }));
+
   const dayEvents = events.filter(e => {
     const start = new Date(e.date_start);
     const end   = new Date(e.date_end || e.date_start);
@@ -268,7 +274,7 @@ function DayPanel({ date, events, onEdit, onClose, onNew, onRefresh }) {
   const confirmBooking = async (e) => {
     try {
       await supabase.from('calendar_entries').update({ event_type: 'event' }).eq('id', e.id);
-      toast.success('Événement confirmé ✓');
+      toast.success(t('event_confirmed'));
       if (onRefresh) onRefresh();
     } catch(err) { toast.error(err.message); }
   };
@@ -277,11 +283,11 @@ function DayPanel({ date, events, onEdit, onClose, onNew, onRefresh }) {
     <div style={{ background: C.bg2, border: '1px solid '+C.border, borderRadius: 12, padding: 16, minWidth: 260 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: C.cream }}>
-          {date.toLocaleDateString('fr', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {date.toLocaleDateString(t('cal.locale'), { weekday: 'long', day: 'numeric', month: 'long' })}
         </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer' }}>✕</button>
       </div>
-      {dayEvents.length === 0 && <div style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>Aucun événement ce jour</div>}
+      {dayEvents.length === 0 && <div style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>{t('cal.day_no_ev')}</div>}
       {dayEvents.map(e => {
         const ec = getEventColor(e.event_type);
         const isPublic = e.visibility === 'public';
@@ -292,48 +298,49 @@ function DayPanel({ date, events, onEdit, onClose, onNew, onRefresh }) {
             onMouseLeave={ev => ev.currentTarget.style.background = C.card}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
               <div style={{ fontWeight: 600, fontSize: 12, color: C.text, flex: 1 }}>{e.title}</div>
-              {isPublic && <span style={{ background: C.green+'22', color: C.green, border: '1px solid '+C.green+'55', borderRadius: 20, padding: '1px 7px', fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap' }}>🌐 Public</span>}
+              {isPublic && <span style={{ background: C.green+'22', color: C.green, border: '1px solid '+C.green+'55', borderRadius: 20, padding: '1px 7px', fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap' }}>{t('cal.public_lbl')}</span>}
             </div>
             {isPublic && (
               <div style={{ background: C.green+'11', border: '1px solid '+C.green+'33', borderRadius: 5, padding: '4px 7px', fontSize: 10, color: C.green, marginBottom: 6 }}>
-                ⚠️ Cet événement est visible par tous les utilisateurs
+                {t('cal.public_warn_short')}
               </div>
             )}
             {isPublic && e.event_type !== 'availability' && (
               <div style={{ background: C.tag, border: '1px dashed '+C.orange+'55', borderRadius: 5, padding: '7px 8px', fontSize: 10, color: C.dim, marginBottom: 6, textAlign: 'center' }}>
-                🖼️ Affiche de l'événement · Bientôt disponible
+                {t('cal.poster_soon')}
               </div>
             )}
             {!isPublic && (e.event_type === 'booking' || e.event_type === 'event') && (
               <div style={{ background: C.amber+'11', border: '1px solid '+C.amber+'33', borderRadius: 5, padding: '4px 7px', fontSize: 10, color: C.amber, marginBottom: 6 }}>
-                🔒 Titre masqué au public — publiez en mode Public pour révéler
+                {t('cal.booking_private')}
               </div>
             )}
             {e.time_start && <div style={{ fontSize: 11, color: C.muted }}>🕐 {e.time_start} – {e.time_end}</div>}
             {e.location && <div style={{ fontSize: 11, color: C.dim }}>📍 {e.location}</div>}
             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
               <span style={{ background: ec+'22', color: ec, borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>
-                {EVENT_TYPES.find(t => t.k === e.event_type)?.l || e.event_type}
+                {ET.find(et => et.k === e.event_type)?.l || e.event_type}
               </span>
               {!isPublic && <span style={{ fontSize: 10, color: e.visibility === 'shared' ? C.blue : C.dim }}>
-                {e.visibility === 'shared' ? '🔗 Partagé' : '🔒 Privé'}
+                {e.visibility === 'shared' ? t('cal.shared_lbl') : t('cal.private_lbl')}
               </span>}
             </div>
             {e.event_type === 'booking' && (
               <div style={{ marginTop: 8 }} onClick={ev => ev.stopPropagation()}>
-                <Btn sz='sm' v='success' onClick={() => confirmBooking(e)}>✓ Confirmer comme événement officiel</Btn>
+                <Btn sz='sm' v='success' onClick={() => confirmBooking(e)}>{t('cal.confirm_ev')}</Btn>
               </div>
             )}
           </div>
         );
       })}
-      <Btn onClick={onNew} full sz='sm' style={{ marginTop: 4 }}>+ Ajouter ici</Btn>
+      <Btn onClick={onNew} full sz='sm' style={{ marginTop: 4 }}>{t('cal.add_here')}</Btn>
     </div>
   );
 }
 
 /* ── Profile Search ── */
 function ProfileSearch({ profiles, myId, onSelect, onClose }) {
+  const t = useT();
   const [q, setQ] = useState('');
   const filtered = profiles.filter(p =>
     p.id !== myId &&
@@ -344,13 +351,13 @@ function ProfileSearch({ profiles, myId, onSelect, onClose }) {
     <div style={{ position: 'fixed', inset: 0, background: '#00000090', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: C.bg2, border: '1px solid '+C.border, borderRadius: 16, maxWidth: 420, width: '100%', boxShadow: '0 40px 100px #00000090' }}>
         <div style={{ padding: '15px 20px', borderBottom: '1px solid '+C.border, background: C.card, borderRadius: '16px 16px 0 0' }}>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: C.cream, marginBottom: 10 }}>Comparer avec...</div>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: C.cream, marginBottom: 10 }}>{t('cal.compare_title')}</div>
           <input value={q} onChange={e => setQ(e.target.value)} autoFocus
-            placeholder='Chercher un artiste, lieu...'
+            placeholder={t('cal.compare_ph')}
             style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: 'none', width: '100%' }} />
         </div>
         <div style={{ padding: 12, maxHeight: 320, overflowY: 'auto' }}>
-          {filtered.length === 0 && <div style={{ color: C.dim, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Aucun profil trouvé</div>}
+          {filtered.length === 0 && <div style={{ color: C.dim, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>{t('cal.no_profile')}</div>}
           {filtered.map(p => (
             <div key={p.id} onClick={() => onSelect(p)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}
@@ -361,7 +368,7 @@ function ProfileSearch({ profiles, myId, onSelect, onClose }) {
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{p.name}</div>
                 <div style={{ fontSize: 11, color: C.muted }}>{p.genre} · {p.region}</div>
               </div>
-              <span style={{ fontSize: 10, color: C.green }}>Voir agenda →</span>
+              <span style={{ fontSize: 10, color: C.green }}>{t('cal.see_agenda')}</span>
             </div>
           ))}
         </div>
@@ -372,6 +379,7 @@ function ProfileSearch({ profiles, myId, onSelect, onClose }) {
 
 /* ── Shared Calendar View ── */
 function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
+  const t = useT();
   const today = new Date();
   const [year, setYear]               = useState(today.getFullYear());
   const [month, setMonth]             = useState(today.getMonth());
@@ -400,6 +408,8 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
+  const months = t('cal.months');
+  const days   = t('cal.days');
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay    = getFirstDayOfMonth(year, month);
 
@@ -422,18 +432,18 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
         <div style={{ padding: '16px 22px', borderBottom: '1px solid '+C.border, background: C.card, borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'center', gap: 14 }}>
           <span style={{ fontSize: 28 }}>{otherProfile.avatar || '🎵'}</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: C.cream }}>Disponibilités avec {otherProfile.name}</div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Cliquez sur une plage ✨ commune pour envoyer une invitation</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: C.cream }}>{t('cmp.title', { name: otherProfile.name })}</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{t('cmp.hint')}</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 18 }}>✕</button>
         </div>
 
         <div style={{ padding: '10px 22px', borderBottom: '1px solid '+C.border, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {[
-            { color: C.purple, label: '✨ Tous les deux disponibles — cliquer pour inviter' },
-            { color: C.amber,  label: otherProfile.name + ' est réservé(e)' },
-            { color: C.muted,  label: 'Vous êtes réservé(e)' },
-            { color: C.red,    label: 'Tous les deux occupés' },
+            { color: C.purple, label: t('cmp.both_free') },
+            { color: C.amber,  label: t('cmp.them_busy', { name: otherProfile.name }) },
+            { color: C.muted,  label: t('cmp.me_busy') },
+            { color: C.red,    label: t('cmp.both_busy') },
           ].map(l => (
             <span key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.muted }}>
               <span style={{ width: 10, height: 10, borderRadius: 3, background: l.color, display: 'inline-block' }} />{l.label}
@@ -443,21 +453,21 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
 
         <div style={{ padding: '12px 22px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={prevMonth} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 7, color: C.muted, cursor: 'pointer', padding: '5px 10px', fontSize: 14 }}>‹</button>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: C.cream, flex: 1, textAlign: 'center' }}>{MONTHS_FR[month]} {year}</div>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: C.cream, flex: 1, textAlign: 'center' }}>{months[month]} {year}</div>
           <button onClick={nextMonth} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 7, color: C.muted, cursor: 'pointer', padding: '5px 10px', fontSize: 14 }}>›</button>
         </div>
 
         <div style={{ padding: '0 22px 22px' }}>
-          {loading && <div style={{ textAlign: 'center', padding: '40px 0', color: C.muted }}>Chargement…</div>}
+          {loading && <div style={{ textAlign: 'center', padding: '40px 0', color: C.muted }}>{t('cal.loading')}</div>}
           {!loading && otherEntries.length === 0 && (
             <div style={{ background: C.blue+'11', border: '1px solid '+C.blue+'44', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: C.muted }}>
-              ℹ️ {otherProfile.name} n'a pas encore partagé sa disponibilité publiquement. Invitez-les à créer des entrées de type "Disponibilité" visibles publiquement.
+              ℹ️ {t('cmp.no_avail', { name: otherProfile.name })}
             </div>
           )}
           {!loading && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
-                {DAYS_FR.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', padding: '4px 0' }}>{d}</div>)}
+                {days.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', padding: '4px 0' }}>{d}</div>)}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
                 {[...Array(firstDay)].map((_, i) => <div key={'e'+i} style={{ minHeight: 70, background: C.bg+'80', borderRadius: 6 }} />)}
@@ -470,14 +480,12 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
                   const othAvailCount  = getAvail(otherEntries, day).length;
                   const othBusyEntries = getBusy(otherEntries, day);
                   const othBusyCount   = othBusyEntries.length;
-                  // Free = no explicit availability entries (default open) OR more slots than bookings
                   const iMeFree    = myAvailCount > 0  ? myAvailCount  > myBusyCount  : myBusyCount  === 0;
                   const isThemFree = othAvailCount > 0 ? othAvailCount > othBusyCount : othBusyCount === 0;
                   const bothFree      = iMeFree && isThemFree;
                   const onlyMeBusy    = !iMeFree && isThemFree;
                   const onlyThemBusy  = iMeFree && !isThemFree;
                   const bothBusy      = !iMeFree && !isThemFree;
-                  // Remaining open slots to display
                   const mySlotsLeft   = myAvailCount  > 0 ? Math.max(0, myAvailCount  - myBusyCount)  : null;
                   const othSlotsLeft  = othAvailCount > 0 ? Math.max(0, othAvailCount - othBusyCount) : null;
 
@@ -489,6 +497,8 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
                   else if (onlyThemBusy)  { bg = C.amber+'11'; brd = C.amber+'66'; clickable = false; }
                   if (isToday && bothFree) brd = C.glow;
 
+                  const sharedSlots = Math.min(mySlotsLeft ?? 99, othSlotsLeft ?? 99);
+
                   return (
                     <div key={day}
                       onClick={() => bothFree && setSelectedSlot({ day, date: d })}
@@ -496,13 +506,13 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
                       onMouseEnter={e => { if (clickable) e.currentTarget.style.transform = 'scale(1.03)'; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>
                       <div style={{ fontSize: 11, fontWeight: isToday ? 700 : 400, color: isToday ? C.glow : C.text, marginBottom: 3 }}>{day}</div>
-                      {bothFree     && <div style={{ fontSize: 9, color: C.purple, fontWeight: 700 }}>✨ {mySlotsLeft !== null || othSlotsLeft !== null ? `${Math.min(mySlotsLeft ?? 99, othSlotsLeft ?? 99)} place(s)` : 'Dispo'}</div>}
+                      {bothFree     && <div style={{ fontSize: 9, color: C.purple, fontWeight: 700 }}>✨ {mySlotsLeft !== null || othSlotsLeft !== null ? t('cmp.slots', { n: sharedSlots }) : t('cmp.dispo')}</div>}
                       {onlyThemBusy && <div style={{ fontSize: 9, color: C.amber, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {othBusyEntries[0] ? getPublicTitle(othBusyEntries[0]) : otherProfile.name.split(' ')[0]}
+                        {othBusyEntries[0] ? getPublicTitle(othBusyEntries[0], t('cal.booking_incoming')) : otherProfile.name.split(' ')[0]}
                         {othBusyCount > 1 && ` +${othBusyCount - 1}`}
                       </div>}
-                      {onlyMeBusy   && <div style={{ fontSize: 9, color: C.muted }}>🔒 Vous</div>}
-                      {bothBusy     && <div style={{ fontSize: 9, color: C.red }}>✕ Occupés</div>}
+                      {onlyMeBusy   && <div style={{ fontSize: 9, color: C.muted }}>{t('cmp.you_busy')}</div>}
+                      {bothBusy     && <div style={{ fontSize: 9, color: C.red }}>{t('cmp.x_busy')}</div>}
                     </div>
                   );
                 })}
@@ -514,14 +524,14 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
         {selectedSlot && (
           <div style={{ margin: '0 22px 22px', background: C.purple+'11', border: '1px solid '+C.purple+'44', borderRadius: 12, padding: 16 }}>
             <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 700, color: C.cream, marginBottom: 8 }}>
-              ✨ {selectedSlot.date.toLocaleDateString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              ✨ {selectedSlot.date.toLocaleDateString(t('cal.locale'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-              Vous êtes tous les deux disponibles. Envoyez une invitation à {otherProfile.name} !
+              {t('cmp.free_slot', { name: otherProfile.name })}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Btn onClick={() => { onInvite(otherProfile, selectedSlot.date); onClose(); }}>🗺️ Envoyer une invitation</Btn>
-              <Btn v='ghost' onClick={() => setSelectedSlot(null)}>Annuler</Btn>
+              <Btn onClick={() => { onInvite(otherProfile, selectedSlot.date); onClose(); }}>{t('cmp.send_invite')}</Btn>
+              <Btn v='ghost' onClick={() => setSelectedSlot(null)}>{t('cmp.cancel')}</Btn>
             </div>
           </div>
         )}
@@ -532,9 +542,10 @@ function SharedCalendarView({ myId, otherProfile, onClose, onInvite }) {
 
 /* ── Share Event Modal ── */
 function ShareEventModal({ event, profileUrl, profileName, profileGenre, profileRegion, onClose }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
-  const dateStr = new Date(event.date_start).toLocaleDateString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStr = new Date(event.date_start).toLocaleDateString(t('cal.locale'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const timeStr = event.time_start ? `${event.time_start}${event.time_end ? ' – ' + event.time_end : ''}` : null;
   const slug = s => s?.replace(/[\s/,&]+/g, '') || '';
   const hashtags = ['#StageMap', profileGenre ? '#' + slug(profileGenre) : '#LiveMusic', profileRegion ? '#' + slug(profileRegion) : null, '#Concert', '#Live'].filter(Boolean).join(' ');
@@ -568,25 +579,25 @@ function ShareEventModal({ event, profileUrl, profileName, profileGenre, profile
     navigator.clipboard.writeText(post);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
-    toast.success('Annonce copiée !');
+    toast.success(t('post_copied'));
   };
 
   return (
     <div style={{ position:'fixed', inset:0, background:'#00000095', zIndex:4000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background:C.bg2, border:'1px solid '+C.border, borderRadius:16, maxWidth:500, width:'100%', maxHeight:'90vh', overflow:'auto', boxShadow:'0 40px 100px #00000090' }}>
         <div style={{ padding:'15px 22px', borderBottom:'1px solid '+C.border, background:C.card, display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ flex:1, fontFamily:"'Cormorant Garamond',serif", fontSize:17, fontWeight:700, color:C.cream }}>📢 Partager l'événement</div>
+          <div style={{ flex:1, fontFamily:"'Cormorant Garamond',serif", fontSize:17, fontWeight:700, color:C.cream }}>{t('share.title')}</div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:C.dim, cursor:'pointer', fontSize:16 }}>✕</button>
         </div>
         <div style={{ padding:'18px 22px', display:'flex', flexDirection:'column', gap:14 }}>
-          <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>Copiez cette annonce et collez-la sur vos réseaux, ou cliquez un bouton pour partager directement.</div>
+          <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>{t('share.desc')}</div>
 
           <textarea readOnly value={post} rows={11}
             style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:8, padding:'12px 14px', color:C.text, fontFamily:'monospace', fontSize:12, lineHeight:1.7, resize:'none', width:'100%', outline:'none' }} />
 
           <button onClick={copy}
             style={{ width:'100%', padding:'11px 0', background:copied?C.green+'22':'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', color:copied?C.green:'#fff', border:'1px solid '+(copied?C.green+'55':'transparent'), borderRadius:9, fontFamily:"'Outfit',sans-serif", fontWeight:600, fontSize:14, cursor:'pointer', transition:'all .2s' }}>
-            {copied ? '✓ Annonce copiée !' : "📋 Copier l'annonce"}
+            {copied ? t('share.copied') : t('share.copy')}
           </button>
 
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -601,7 +612,7 @@ function ShareEventModal({ event, profileUrl, profileName, profileGenre, profile
           </div>
 
           <div style={{ fontSize:10, color:C.dim, textAlign:'center' }}>
-            Instagram et TikTok ne supportent pas le partage direct — utilisez "Copier" puis collez dans votre publication.
+            {t('share.ig_note')}
           </div>
         </div>
       </div>
@@ -613,6 +624,7 @@ function ShareEventModal({ event, profileUrl, profileName, profileGenre, profile
    MAIN CalendarView
 ══════════════════════════════════ */
 export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
+  const t = useT();
   const today = new Date();
   const [year, setYear]               = useState(today.getFullYear());
   const [month, setMonth]             = useState(today.getMonth());
@@ -626,6 +638,11 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
   const [showSearch, setShowSearch]   = useState(false);
   const [compareProfile, setCompareProfile] = useState(null);
   const [shareEvent, setShareEvent]   = useState(null);
+
+  const ET = EVENT_TYPE_KEYS.map(e => ({ ...e, l: t('cal.' + e.k) }));
+  const REC = RECURRENCE_KEYS.map(k => ({ k, l: t('cal.recurrence_' + k) }));
+  const months = t('cal.months');
+  const days   = t('cal.days');
 
   const loadEntries = async () => {
     setLoading(true);
@@ -665,33 +682,36 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
 
   const filtered = filterType === 'all' ? entries : entries.filter(e => e.event_type === filterType);
 
+  const filterButtons = [{ k: 'all', l: t('cal.all'), c: null }, ...ET];
+  const viewButtons = [{ k: 'month', l: t('cal.month_view') }, { k: 'list', l: t('cal.list_view') }];
+
   return (
     <div className='fade-in'>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={prevMonth} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 7, color: C.muted, cursor: 'pointer', padding: '5px 10px', fontSize: 14 }}>‹</button>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 700, color: C.cream, minWidth: 180, textAlign: 'center' }}>{MONTHS_FR[month]} {year}</div>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 700, color: C.cream, minWidth: 180, textAlign: 'center' }}>{months[month]} {year}</div>
           <button onClick={nextMonth} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 7, color: C.muted, cursor: 'pointer', padding: '5px 10px', fontSize: 14 }}>›</button>
-          <button onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth()); }} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 7, color: C.muted, cursor: 'pointer', padding: '4px 9px', fontSize: 11, fontFamily: "'Outfit',sans-serif" }}>Aujourd'hui</button>
+          <button onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth()); }} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 7, color: C.muted, cursor: 'pointer', padding: '4px 9px', fontSize: 11, fontFamily: "'Outfit',sans-serif" }}>{t('cal.today')}</button>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {[{ k: 'all', l: 'Tous' }, ...EVENT_TYPES].map(t => (
-            <button key={t.k} onClick={() => setFilterType(t.k)}
-              style={{ background: filterType === t.k ? (t.c || C.orange)+'22' : C.tag, border: '1px solid '+(filterType === t.k ? (t.c || C.orange) : C.border), borderRadius: 20, padding: '3px 10px', cursor: 'pointer', fontSize: 11, color: filterType === t.k ? (t.c || C.orange) : C.muted, fontFamily: "'Outfit',sans-serif", fontWeight: filterType === t.k ? 600 : 400 }}>
-              {t.l}
+          {filterButtons.map(fb => (
+            <button key={fb.k} onClick={() => setFilterType(fb.k)}
+              style={{ background: filterType === fb.k ? (fb.c || C.orange)+'22' : C.tag, border: '1px solid '+(filterType === fb.k ? (fb.c || C.orange) : C.border), borderRadius: 20, padding: '3px 10px', cursor: 'pointer', fontSize: 11, color: filterType === fb.k ? (fb.c || C.orange) : C.muted, fontFamily: "'Outfit',sans-serif", fontWeight: filterType === fb.k ? 600 : 400 }}>
+              {fb.l}
             </button>
           ))}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 7 }}>
-          {[{ k: 'month', l: '📅 Mois' }, { k: 'list', l: '📋 Liste' }].map(v => (
-            <button key={v.k} onClick={() => setView(v.k)}
-              style={{ background: view === v.k ? C.orange+'22' : C.tag, border: '1px solid '+(view === v.k ? C.orange : C.border), borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontSize: 11, color: view === v.k ? C.orange : C.muted, fontFamily: "'Outfit',sans-serif", fontWeight: view === v.k ? 600 : 400 }}>
-              {v.l}
+          {viewButtons.map(vb => (
+            <button key={vb.k} onClick={() => setView(vb.k)}
+              style={{ background: view === vb.k ? C.orange+'22' : C.tag, border: '1px solid '+(view === vb.k ? C.orange : C.border), borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontSize: 11, color: view === vb.k ? C.orange : C.muted, fontFamily: "'Outfit',sans-serif", fontWeight: view === vb.k ? 600 : 400 }}>
+              {vb.l}
             </button>
           ))}
-          <Btn v='secondary' sz='sm' onClick={() => setShowSearch(true)}>👥 Comparer</Btn>
-          <Btn sz='sm' onClick={() => { setFormDate(today); setEditEvent(null); }}>+ Nouveau</Btn>
+          <Btn v='secondary' sz='sm' onClick={() => setShowSearch(true)}>{t('cal.compare')}</Btn>
+          <Btn sz='sm' onClick={() => { setFormDate(today); setEditEvent(null); }}>{t('cal.new')}</Btn>
         </div>
       </div>
 
@@ -699,7 +719,7 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
         {view === 'month' && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
-              {DAYS_FR.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', padding: '4px 0' }}>{d}</div>)}
+              {days.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', padding: '4px 0' }}>{d}</div>)}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
               {[...Array(firstDay)].map((_, i) => <div key={'e'+i} style={{ minHeight: 80, background: C.bg+'80', borderRadius: 6 }} />)}
@@ -729,7 +749,7 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
                           </div>
                         );
                       })}
-                      {dayEvents.length > 3 && <div style={{ fontSize: 9, color: C.dim }}>+{dayEvents.length - 3} autres</div>}
+                      {dayEvents.length > 3 && <div style={{ fontSize: 9, color: C.dim }}>{t('cal.others', { n: dayEvents.length - 3 })}</div>}
                     </div>
                   </div>
                 );
@@ -740,8 +760,8 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
 
         {view === 'list' && (
           <div>
-            {loading && <div style={{ color: C.dim, fontSize: 13, padding: '20px 0' }}>Chargement…</div>}
-            {!loading && filtered.length === 0 && <div style={{ color: C.dim, fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Aucun événement ce mois</div>}
+            {loading && <div style={{ color: C.dim, fontSize: 13, padding: '20px 0' }}>{t('cal.loading')}</div>}
+            {!loading && filtered.length === 0 && <div style={{ color: C.dim, fontSize: 13, padding: '20px 0', textAlign: 'center' }}>{t('cal.no_events')}</div>}
             {filtered.map(e => {
               const ec = getEventColor(e.event_type);
               const isPublic = e.visibility === 'public';
@@ -753,16 +773,16 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: C.text }}>{e.title}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {isPublic && <span style={{ background: C.green+'22', color: C.green, border: '1px solid '+C.green+'55', borderRadius: 20, padding: '1px 8px', fontSize: 10, fontWeight: 700 }}>🌐 Public</span>}
-                      <span style={{ fontSize: 10, color: C.dim }}>{new Date(e.date_start).toLocaleDateString('fr', { day: 'numeric', month: 'short' })}</span>
+                      {isPublic && <span style={{ background: C.green+'22', color: C.green, border: '1px solid '+C.green+'55', borderRadius: 20, padding: '1px 8px', fontSize: 10, fontWeight: 700 }}>{t('cal.public_lbl')}</span>}
+                      <span style={{ fontSize: 10, color: C.dim }}>{new Date(e.date_start).toLocaleDateString(t('cal.locale'), { day: 'numeric', month: 'short' })}</span>
                     </div>
                   </div>
                   {isPublic && (
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background: C.green+'11', border: '1px solid '+C.green+'33', borderRadius: 5, padding: '4px 8px', marginBottom: 7 }}>
-                      <span style={{ fontSize: 10, color: C.green }}>⚠️ Visible par tous les utilisateurs de StageMap</span>
+                      <span style={{ fontSize: 10, color: C.green }}>{t('cal.visible_to_all')}</span>
                       <button onClick={ev => { ev.stopPropagation(); setShareEvent(e); }}
                         style={{ background:C.orange+'22', border:'1px solid '+C.orange+'44', borderRadius:5, color:C.orange, fontSize:10, fontWeight:600, padding:'2px 8px', cursor:'pointer', fontFamily:"'Outfit',sans-serif", flexShrink:0 }}>
-                        📢 Partager
+                        {t('share.btn')}
                       </button>
                     </div>
                   )}
@@ -771,9 +791,9 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
                     {e.location && <span>📍 {e.location}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
-                    <span style={{ background: ec+'22', color: ec, borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{EVENT_TYPES.find(t => t.k === e.event_type)?.l || e.event_type}</span>
-                    {e.recurrence !== 'none' && <span style={{ fontSize: 10, color: C.blue }}>🔄 {RECURRENCE.find(r => r.k === e.recurrence)?.l}</span>}
-                    {!isPublic && <span style={{ fontSize: 10, color: e.visibility === 'shared' ? C.blue : C.dim }}>{e.visibility === 'shared' ? '🔗 Partagé' : '🔒 Privé'}</span>}
+                    <span style={{ background: ec+'22', color: ec, borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{ET.find(et => et.k === e.event_type)?.l || e.event_type}</span>
+                    {e.recurrence !== 'none' && <span style={{ fontSize: 10, color: C.blue }}>🔄 {REC.find(r => r.k === e.recurrence)?.l}</span>}
+                    {!isPublic && <span style={{ fontSize: 10, color: e.visibility === 'shared' ? C.blue : C.dim }}>{e.visibility === 'shared' ? t('cal.shared_lbl') : t('cal.private_lbl')}</span>}
                   </div>
                 </div>
               );
@@ -793,10 +813,10 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
 
       <div style={{ marginTop: 16, background: C.card, border: '1px solid '+C.border, borderRadius: 10, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2 }}>🔗 Partager mon profil public</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2 }}>{t('cal.share_profile')}</div>
           <div style={{ fontSize: 11, color: C.dim }}>{window.location.origin}/profile/{myId}</div>
         </div>
-        <Btn v='ghost' sz='sm' onClick={() => { navigator.clipboard.writeText(window.location.origin + '/profile/' + myId); toast.success('Lien copié !'); }}>Copier</Btn>
+        <Btn v='ghost' sz='sm' onClick={() => { navigator.clipboard.writeText(window.location.origin + '/profile/' + myId); toast.success(t('link_copied')); }}>{t('btn.copy')}</Btn>
       </div>
 
       {showSearch && (

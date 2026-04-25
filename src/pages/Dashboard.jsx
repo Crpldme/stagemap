@@ -15,6 +15,7 @@ import { startSubscription, payForCampaign, checkSubscription, PRICES } from '..
 import Map, { Marker, Popup, NavigationControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { CalendarView } from '../components/CalendarView';
+import { useT } from '../lib/i18n';
 
 /* ── Design Tokens ── */
 const C = {
@@ -99,6 +100,8 @@ function Spinner() {
 function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef();
+  const t = useT();
+  const tl = { artist: t('type.artist'), venue: t('type.venue'), fan: t('type.fan') };
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -117,7 +120,7 @@ function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
 
       {open && (
         <div style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:C.bg2, border:'1px solid '+C.border, borderRadius:12, minWidth:210, zIndex:600, boxShadow:'0 16px 40px #00000090', overflow:'hidden' }}>
-          <div style={{ padding:'8px 12px', borderBottom:'1px solid '+C.border, fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase' }}>Mes profils</div>
+          <div style={{ padding:'8px 12px', borderBottom:'1px solid '+C.border, fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase' }}>{t('switcher.my_profiles')}</div>
 
           {userProfiles.map(p => (
             <div key={p.id} onClick={() => { onSwitch(p.id); setOpen(false); }}
@@ -127,7 +130,7 @@ function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
               <span style={{ fontSize:18 }}>{p.avatar || '🎵'}</span>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:12, fontWeight: profile.id===p.id ? 600 : 400, color:C.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.name}</div>
-                <div style={{ fontSize:10, color:C.muted }}>{typeLabels[p.type]} · {p.region}</div>
+                <div style={{ fontSize:10, color:C.muted }}>{tl[p.type]} · {p.region}</div>
               </div>
               {profile.id===p.id && <span style={{ fontSize:10, color:C.orange }}>✓</span>}
             </div>
@@ -138,13 +141,13 @@ function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
               style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', cursor:'pointer', color:C.orangeLt, fontSize:12 }}
               onMouseEnter={e => e.currentTarget.style.background = C.card}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-              ＋ Ajouter un profil
+              {t('switcher.add')}
             </div>
             <div onClick={() => { onLogout(); setOpen(false); }}
               style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', cursor:'pointer', color:C.red, fontSize:12 }}
               onMouseEnter={e => e.currentTarget.style.background = C.card}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-              ↩ Déconnexion
+              {t('switcher.logout')}
             </div>
           </div>
         </div>
@@ -155,10 +158,13 @@ function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
 
 /* ── Map View (Mapbox) ── */
 function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
+  const navigate = useNavigate();
   const [popup, setPopup] = useState(null);
   const [hov, setHov] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
+  const t = useT();
+  const tl = { artist: t('type.artist'), venue: t('type.venue'), fan: t('type.fan') };
 
   const withCoords = artists.filter(a => a.lat && a.lng);
   const centerLng = withCoords?.length ? withCoords.reduce((s,a)=>s+a.lng,0)/withCoords?.length : -45;
@@ -173,7 +179,7 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
       <div style={{ position:'relative', height:480, borderRadius:16, border:'1px solid '+C.border, overflow:'hidden', boxShadow:'0 8px 40px #00000060' }}>
         {!mapLoaded && (
           <div style={{ position:'absolute', inset:0, zIndex:10, background:'linear-gradient(135deg,#0a160a,#0a1220,#160a0a)', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}>
-            <Spinner /><span style={{ color:C.muted, fontSize:13 }}>Chargement de la carte…</span>
+            <Spinner /><span style={{ color:C.muted, fontSize:13 }}>{t('loading')}</span>
           </div>
         )}
         <Map {...viewport} onMove={e=>setViewport(e.viewState)} mapboxAccessToken={MAPBOX_TOKEN} mapStyle="mapbox://styles/mapbox/dark-v11" style={{ width:'100%', height:'100%' }} onLoad={()=>setMapLoaded(true)} onError={()=>setMapError(true)} attributionControl={false}>
@@ -194,12 +200,12 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
                   {venueEvts.length > 0 && !isH && <div style={{ position:'absolute', top:-3, right:-3, width:9, height:9, borderRadius:'50%', background:C.purple, border:'2px solid '+C.bg, boxShadow:'0 0 5px '+C.purple }} />}
                   {isH && !popup && (
                     <div style={{ position:'absolute', bottom:'calc(100% + 10px)', left:'50%', transform:'translateX(-50%)', background:C.bg2, border:'1px solid '+(isMe?C.glow:venueEvts.length>0?C.purple:C.border), borderRadius:10, padding:'8px 11px', color:C.text, fontSize:12, pointerEvents:'none', zIndex:30, boxShadow:'0 6px 24px #00000090', minWidth:150, maxWidth:230 }}>
-                      {isMe && <div style={{ color:C.glow, fontSize:9, marginBottom:3 }}>✦ Votre profil actif</div>}
+                      {isMe && <div style={{ color:C.glow, fontSize:9, marginBottom:3 }}>{t('map.active')}</div>}
                       <strong style={{ whiteSpace:'nowrap' }}>{a.name}</strong>
                       <div style={{ color:C.muted, fontSize:10, whiteSpace:'nowrap', marginBottom: venueEvts.length > 0 ? 6 : 0 }}>{a.region}</div>
                       {venueEvts.length > 0 && <>
                         <div style={{ borderTop:'1px solid '+C.border, paddingTop:5, marginBottom:3 }}>
-                          <div style={{ fontSize:9, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>📅 Événements à venir</div>
+                          <div style={{ fontSize:9, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>{t('map.upcoming_events')}</div>
                           {venueEvts.map(ev=>(
                             <div key={ev.id} style={{ fontSize:10, color:C.purple, marginBottom:3, display:'flex', alignItems:'center', gap:3 }}>
                               <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ev.title}</span>
@@ -207,7 +213,7 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
                             </div>
                           ))}
                         </div>
-                        <div style={{ fontSize:9, color:C.dim, textAlign:'center' }}>Cliquer pour voir le profil</div>
+                        <div style={{ fontSize:9, color:C.dim, textAlign:'center' }}>{t('map.click_profile')}</div>
                       </>}
                     </div>
                   )}
@@ -226,17 +232,20 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
           {popup && popup._isEvent ? (
             <Popup longitude={popup.profile.lng} latitude={popup.profile.lat} anchor="bottom" offset={28} onClose={()=>setPopup(null)} closeButton={false} style={{ zIndex:50 }}>
               <div style={{ background:C.bg2, border:'1px solid '+C.purple+'66', borderRadius:10, padding:'10px 13px', minWidth:190, fontFamily:"'Outfit',sans-serif", color:C.text }}>
-                <div style={{ color:C.purple, fontSize:10, marginBottom:4 }}>📅 Événement public</div>
+                <div style={{ color:C.purple, fontSize:10, marginBottom:4 }}>{t('modal.public_event')}</div>
                 <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, fontWeight:700, marginBottom:2 }}>{popup.title}</div>
                 <div style={{ color:C.muted, fontSize:11, marginBottom:2 }}>{new Date(popup.date_start).toLocaleDateString('fr',{day:'numeric',month:'long',year:'numeric'})}</div>
-                <div style={{ color:C.dim, fontSize:11, marginBottom:8 }}>par {popup.profile.name} · {popup.profile.region}</div>
-                <button onClick={()=>{ onOpen(popup.profile); setPopup(null); }} style={{ width:'100%', background:'linear-gradient(135deg,'+C.purple+',#8030cc)', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>Voir le profil</button>
+                <div style={{ color:C.dim, fontSize:11, marginBottom:8 }}>{t('ev.by')} {popup.profile.name} · {popup.profile.region}</div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <button onClick={()=>{ navigate('/profile/'+popup.profile.id+'?event='+popup.id); setPopup(null); }} style={{ flex:1, background:'linear-gradient(135deg,'+C.purple+',#8030cc)', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{t('modal.see_event')}</button>
+                  <button onClick={()=>{ onOpen(popup.profile); setPopup(null); }} style={{ flex:1, background:C.tag, border:'1px solid '+C.purple+'55', borderRadius:6, color:C.purple, fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{t('modal.see')}</button>
+                </div>
               </div>
             </Popup>
           ) : popup && (
             <Popup longitude={popup.lng} latitude={popup.lat} anchor="bottom" offset={28} onClose={()=>setPopup(null)} closeButton={false} style={{ zIndex:50 }}>
               <div style={{ background:C.bg2, border:'1px solid '+(myProfile&&popup.id===myProfile.id?C.glow:C.border), borderRadius:10, padding:'10px 13px', minWidth:180, fontFamily:"'Outfit',sans-serif", color:C.text }}>
-                {myProfile && popup.id === myProfile.id && <div style={{ color:C.glow, fontSize:10, marginBottom:4 }}>✦ Votre profil actif</div>}
+                {myProfile && popup.id === myProfile.id && <div style={{ color:C.glow, fontSize:10, marginBottom:4 }}>{t('modal.active')}</div>}
                 <div style={{ display:'flex', gap:9, alignItems:'center', marginBottom:8 }}>
                   <span style={{ fontSize:26 }}>{popup.avatar || '🎵'}</span>
                   <div>
@@ -245,20 +254,23 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
                     <div style={{ color:C.dim, fontSize:10 }}>📍 {popup.region}, {popup.country}</div>
                   </div>
                 </div>
-                {popup.available && <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:C.green, marginBottom:7 }}><span style={{ width:5, height:5, borderRadius:'50%', background:C.green, display:'inline-block' }} />Disponible pour booking</div>}
+                {popup.available && <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:C.green, marginBottom:7 }}><span style={{ width:5, height:5, borderRadius:'50%', background:C.green, display:'inline-block' }} />{t('status.available_booking')}</div>}
                 {popup.type === 'venue' && allEvents.filter(ev=>ev.user_id===popup.id).length > 0 && (
                   <div style={{ marginBottom:8 }}>
-                    <div style={{ fontSize:9, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>📅 Événements à venir</div>
+                    <div style={{ fontSize:9, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>{t('map.upcoming_events')}</div>
                     {allEvents.filter(ev=>ev.user_id===popup.id).slice(0,8).map(ev=>(
-                      <div key={ev.id} style={{ background:C.purple+'11', border:'1px solid '+C.purple+'33', borderRadius:5, padding:'3px 8px', fontSize:10, color:C.purple, marginBottom:3, display:'flex', justifyContent:'space-between', gap:6 }}>
+                      <div key={ev.id} onClick={()=>{ navigate('/profile/'+popup.id+'?event='+ev.id); setPopup(null); }}
+                        style={{ background:C.purple+'11', border:'1px solid '+C.purple+'33', borderRadius:5, padding:'3px 8px', fontSize:10, color:C.purple, marginBottom:3, display:'flex', justifyContent:'space-between', gap:6, cursor:'pointer' }}
+                        onMouseEnter={e=>e.currentTarget.style.background=C.purple+'22'}
+                        onMouseLeave={e=>e.currentTarget.style.background=C.purple+'11'}>
                         <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ev.title}</span>
-                        <span style={{ color:C.dim, flexShrink:0 }}>{new Date(ev.date_start).toLocaleDateString('fr',{day:'numeric',month:'short'})}</span>
+                        <span style={{ color:C.dim, flexShrink:0 }}>{new Date(ev.date_start).toLocaleDateString('fr',{day:'numeric',month:'short'})} →</span>
                       </div>
                     ))}
                   </div>
                 )}
                 <div style={{ display:'flex', gap:6 }}>
-                  <button onClick={()=>{ onOpen(popup); setPopup(null); }} style={{ flex:1, background:'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>Voir profil</button>
+                  <button onClick={()=>{ onOpen(popup); setPopup(null); }} style={{ flex:1, background:'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{t('modal.see')}</button>
                   <button onClick={()=>setPopup(null)} style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:6, color:C.muted, fontSize:11, padding:'5px 8px', cursor:'pointer' }}>✕</button>
                 </div>
               </div>
@@ -266,20 +278,20 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
           )}
         </Map>
         <div style={{ position:'absolute', bottom:12, left:12, background:C.card+'ee', border:'1px solid '+C.border, borderRadius:20, padding:'4px 11px', fontSize:11, color:C.muted, backdropFilter:'blur(8px)', pointerEvents:'none' }}>
-          {withCoords?.length} profils sur la carte
+          {t('map.profiles_count', {n: withCoords?.length})}
         </div>
       </div>
       <div style={{ display:'flex', gap:14, marginTop:8, justifyContent:'center', flexWrap:'wrap' }}>
         {events.length > 0
-          ? <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}><span style={{ width:10, height:10, borderRadius:3, background:C.purple, display:'inline-block' }} />Événement public</span>
+          ? <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}><span style={{ width:10, height:10, borderRadius:3, background:C.purple, display:'inline-block' }} />{t('modal.public_event')}</span>
           : <>
-            {Object.entries(typeColors).map(([t,c]) => (
-              <span key={t} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
-                <span style={{ width:8, height:8, borderRadius:'50%', background:c, display:'inline-block' }} />{typeLabels[t]}
+            {Object.entries(typeColors).map(([type,c]) => (
+              <span key={type} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
+                <span style={{ width:8, height:8, borderRadius:'50%', background:c, display:'inline-block' }} />{tl[type]}
               </span>
             ))}
             <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.muted }}>
-              <span style={{ width:8, height:8, borderRadius:'50%', background:C.glow, display:'inline-block' }} />Vous
+              <span style={{ width:8, height:8, borderRadius:'50%', background:C.glow, display:'inline-block' }} />{t('map.you')}
             </span>
           </>
         }
@@ -291,6 +303,8 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
 /* ── Map View Fallback ── */
 function MapViewFallback({ artists, myProfile, onOpen }) {
   const [hov, setHov] = useState(null);
+  const t = useT();
+  const tl = { artist: t('type.artist'), venue: t('type.venue'), fan: t('type.fan') };
   return (
     <div>
       <div style={{position:'relative',height:460,background:'linear-gradient(135deg,#0a160a,#0a1220,#160a0a)',borderRadius:16,border:'1px solid '+C.border,overflow:'hidden'}}>
@@ -309,7 +323,7 @@ function MapViewFallback({ artists, myProfile, onOpen }) {
               </div>
               {isMe&&!isH&&<div style={{position:'absolute',top:-6,right:-4,width:10,height:10,borderRadius:'50%',background:C.glow,border:'2px solid '+C.bg}}/>}
               {isH&&<div style={{position:'absolute',bottom:'110%',left:'50%',transform:'translateX(-50%)',background:C.card,border:'1px solid '+(isMe?C.glow:C.border),borderRadius:8,padding:'6px 10px',whiteSpace:'nowrap',color:C.text,fontSize:12,pointerEvents:'none',zIndex:30}}>
-                {isMe&&<span style={{color:C.glow,fontSize:10}}>✦ Vous · </span>}{a.name}
+                {isMe&&<span style={{color:C.glow,fontSize:10}}>✦ {t('map.you')} · </span>}{a.name}
                 <div style={{color:C.muted,fontSize:10}}>{a.region}</div>
               </div>}
             </div>
@@ -317,8 +331,8 @@ function MapViewFallback({ artists, myProfile, onOpen }) {
         })}
       </div>
       <div style={{display:'flex',gap:14,marginTop:8,justifyContent:'center'}}>
-        {Object.entries(typeColors).map(([t,c])=><span key={t} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.muted}}><span style={{width:8,height:8,borderRadius:'50%',background:c,display:'inline-block'}}/>{typeLabels[t]}</span>)}
-        <span style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.muted}}><span style={{width:8,height:8,borderRadius:'50%',background:C.glow,display:'inline-block'}}/>Vous</span>
+        {Object.entries(typeColors).map(([type,c])=><span key={type} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.muted}}><span style={{width:8,height:8,borderRadius:'50%',background:c,display:'inline-block'}}/>{tl[type]}</span>)}
+        <span style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.muted}}><span style={{width:8,height:8,borderRadius:'50%',background:C.glow,display:'inline-block'}}/>{t('map.you')}</span>
       </div>
     </div>
   );
@@ -327,19 +341,21 @@ function MapViewFallback({ artists, myProfile, onOpen }) {
 /* ── Profile Modal ── */
 function ProfileModal({ a, myId, onClose, onChat, onInvite }) {
   const isMe = a.id === myId;
+  const t = useT();
+  const tl = { artist: t('type.artist'), venue: t('type.venue'), fan: t('type.fan') };
   return (
     <div style={{position:'fixed',inset:0,background:'#00000085',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:C.bg2,border:'1px solid '+(isMe?C.glow:C.border),borderRadius:16,padding:26,maxWidth:420,width:'100%',color:C.text,fontFamily:"'Outfit',sans-serif",boxShadow:'0 40px 100px #00000080'}}>
-        {isMe&&<div style={{background:C.glow+'22',border:'1px solid '+C.glow+'44',borderRadius:8,padding:'5px 12px',fontSize:11,color:C.glow,marginBottom:14}}>✦ Votre profil actif</div>}
+        {isMe&&<div style={{background:C.glow+'22',border:'1px solid '+C.glow+'44',borderRadius:8,padding:'5px 12px',fontSize:11,color:C.glow,marginBottom:14}}>{t('modal.active')}</div>}
         <div style={{display:'flex',gap:14,marginBottom:14}}>
           <div style={{fontSize:38,width:58,height:58,background:C.tag,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid '+typeColors[a.type]}}>{a.avatar||'🎵'}</div>
           <div>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700}}>{a.name}</div>
             <div style={{color:C.muted,fontSize:12,margin:'2px 0'}}>{a.genre} · {a.region}, {a.country}</div>
             <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:4}}>
-              <Pill color={typeColors[a.type]}>{typeLabels[a.type]}</Pill>
-              {a.available&&<span style={{color:C.green,fontSize:10,display:'flex',alignItems:'center',gap:3}}><span style={{width:5,height:5,borderRadius:'50%',background:C.green,display:'inline-block'}}/>Disponible</span>}
-              {a.verified&&<span style={{color:C.blue,fontSize:10}}>✓ Vérifié</span>}
+              <Pill color={typeColors[a.type]}>{tl[a.type]}</Pill>
+              {a.available&&<span style={{color:C.green,fontSize:10,display:'flex',alignItems:'center',gap:3}}><span style={{width:5,height:5,borderRadius:'50%',background:C.green,display:'inline-block'}}/>{t('status.available')}</span>}
+              {a.verified&&<span style={{color:C.blue,fontSize:10}}>{t('status.verified')}</span>}
             </div>
           </div>
         </div>
@@ -348,14 +364,14 @@ function ProfileModal({ a, myId, onClose, onChat, onInvite }) {
         {a.rating>0&&<div style={{marginBottom:10}}><Stars r={a.rating}/> <span style={{color:C.dim,fontSize:11}}>({a.rating_count} avis)</span></div>}
         {a.links&&a.links?.length>0&&<div style={{marginBottom:14}}>{a.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:4,marginBottom:4,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 7px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
         {!isMe&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-          <Btn onClick={()=>{onChat(a);onClose();}}>💬 Contacter</Btn>
-          <Btn v="secondary" onClick={()=>{onInvite(a);onClose();}}>🗺️ Inviter tournée</Btn>
-          <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }}>🌐 Page</Btn>
+          <Btn onClick={()=>{onChat(a);onClose();}}>💬 {t('modal.chat').replace('💬 ','')}</Btn>
+          <Btn v="secondary" onClick={()=>{onInvite(a);onClose();}}>{t('modal.invite')}</Btn>
+          <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }}>{t('modal.public')}</Btn>
           <Btn v="ghost" onClick={onClose}>✕</Btn>
         </div>}
         {isMe&&<div style={{display:'flex',gap:8}}>
-          <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }} full>🌐 Voir ma page publique</Btn>
-          <Btn v="ghost" onClick={onClose}>Fermer</Btn>
+          <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }} full>{t('modal.my_public')}</Btn>
+          <Btn v="ghost" onClick={onClose}>{t('btn.close')}</Btn>
         </div>}
       </div>
     </div>
@@ -422,6 +438,7 @@ function AIPanel({ profiles = [], myProfile, onLaunchTour }) {
   const [result, setResult] = useState(null);
   const [tourPlan, setTourPlan] = useState(null);
   const [err, setErr] = useState('');
+  const t = useT();
 
   const run = async () => {
     if (!query.trim()) return;
@@ -445,12 +462,12 @@ function AIPanel({ profiles = [], myProfile, onLaunchTour }) {
       <div style={{marginBottom:16,display:'flex',gap:12,alignItems:'center'}}>
         <span style={{fontSize:28}}>🤖</span>
         <div>
-          <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>Recherche et Planification IA</h2>
-          <p style={{color:C.muted,fontSize:12,marginTop:2}}>Décrivez en langage naturel — l'IA cherche parmi les {profiles?.length || 0} vrais profils</p>
+          <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>{t('ai.title')}</h2>
+          <p style={{color:C.muted,fontSize:12,marginTop:2}}>{t('ai.subtitle', {n: profiles?.length || 0})}</p>
         </div>
       </div>
       <div style={{display:'flex',gap:7,marginBottom:10}}>
-        {[{k:'search',l:'🔍 Recherche'},{k:'tour',l:'🗺️ Tournée IA'}].map(m=>(
+        {[{k:'search',l:'🔍 '+t('ai.search_tab')},{k:'tour',l:'🗺️ '+t('ai.tour_tab')}].map(m=>(
           <button key={m.k} onClick={()=>setMode(m.k)} style={{background:mode===m.k?C.orange+'22':C.tag,color:mode===m.k?C.orange:C.muted,border:'1px solid '+(mode===m.k?C.orange:C.border),borderRadius:20,padding:'5px 14px',cursor:'pointer',fontSize:12,fontFamily:"'Outfit',sans-serif",fontWeight:mode===m.k?600:400}}>{m.l}</button>
         ))}
       </div>
@@ -469,7 +486,7 @@ function AIPanel({ profiles = [], myProfile, onLaunchTour }) {
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12}}>
           {matched.map(a=><ProfileCard key={a.id} a={a} myId={myProfile?.id} compact/>)}
-          {matched?.length===0&&<div style={{color:C.dim,fontSize:13,gridColumn:'1/-1',textAlign:'center',padding:'20px 0'}}>Aucun profil correspondant.</div>}
+          {matched?.length===0&&<div style={{color:C.dim,fontSize:13,gridColumn:'1/-1',textAlign:'center',padding:'20px 0'}}>{t('ai.no_match')}</div>}
         </div>
       </div>}
       {tourPlan&&<TourPlanCard plan={tourPlan} profiles={profiles} onLaunch={()=>onLaunchTour(tourPlan)}/>}
@@ -480,6 +497,7 @@ function AIPanel({ profiles = [], myProfile, onLaunchTour }) {
 /* ── Tour Plan Card ── */
 function TourPlanCard({ plan, profiles, onLaunch }) {
   const [exp, setExp] = useState(true);
+  const t = useT();
   const getP = id => profiles.find(p=>p.id===id);
   return (
     <div className='fade-in' style={{background:C.card,border:'1px solid '+C.border,borderRadius:14,overflow:'hidden',marginTop:12}}>
@@ -512,7 +530,7 @@ function TourPlanCard({ plan, profiles, onLaunch }) {
           })}
         </div>
         {plan.legalNote&&<div style={{background:C.amber+'11',border:'1px solid '+C.amber+'33',borderRadius:8,padding:9,marginBottom:12,fontSize:12,color:C.amber}}>⚖️ {plan.legalNote}</div>}
-        <Btn onClick={onLaunch}>🚀 Envoyer les invitations</Btn>
+        <Btn onClick={onLaunch}>{t('ai.launch')}</Btn>
       </div>}
     </div>
   );
@@ -521,6 +539,8 @@ function TourPlanCard({ plan, profiles, onLaunch }) {
 /* ── Profile Card ── */
 function ProfileCard({ a, myId, compact, onOpen }) {
   const [hov, setHov] = useState(false);
+  const t = useT();
+  const tl = { artist: t('type.artist'), venue: t('type.venue'), fan: t('type.fan') };
   return (
     <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} onClick={()=>onOpen&&onOpen(a)}
       style={{background:hov?C.cardHov:C.card,border:'1px solid '+(hov?C.borderHov:C.border),borderRadius:12,padding:compact?14:20,cursor:onOpen?'pointer':'default',transition:'all .2s',transform:hov&&onOpen?'translateY(-2px)':'none'}}>
@@ -529,9 +549,9 @@ function ProfileCard({ a, myId, compact, onOpen }) {
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:compact?15:17,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.name}</div>
           <div style={{display:'flex',gap:5,flexWrap:'wrap',marginTop:3}}>
-            <Pill color={typeColors[a.type]} sm>{typeLabels[a.type]}</Pill>
-            {a.available&&<span style={{color:C.green,fontSize:10,display:'flex',alignItems:'center',gap:3}}><span style={{width:5,height:5,borderRadius:'50%',background:C.green,display:'inline-block'}}/>Dispo</span>}
-            {myId&&a.id===myId&&<span style={{color:C.glow,fontSize:10}}>✦ Vous</span>}
+            <Pill color={typeColors[a.type]} sm>{tl[a.type]}</Pill>
+            {a.available&&<span style={{color:C.green,fontSize:10,display:'flex',alignItems:'center',gap:3}}><span style={{width:5,height:5,borderRadius:'50%',background:C.green,display:'inline-block'}}/>{t('status.dispo')}</span>}
+            {myId&&a.id===myId&&<span style={{color:C.glow,fontSize:10}}>✦ {t('map.you')}</span>}
           </div>
         </div>
       </div>
@@ -615,6 +635,7 @@ function InboxView({ messages, myId, profileIds, profiles, onChat, onRefresh }) 
   const [sel, setSel] = useState(null);
   const [invitations, setInvitations] = useState([]);
   const [invLoading, setInvLoading] = useState({});
+  const t = useT();
 
 useEffect(() => { 
     if(myId) getMyInvitations(myId).then(data=>setInvitations(data||[])); 
@@ -636,15 +657,15 @@ if (status === 'accepted') setTimeout(() => window.location.reload(), 1500);    
       <div>
         {pendingInvites?.length>0&&(
           <div style={{background:C.orange+'11',border:'1px solid '+C.orange+'33',borderRadius:9,padding:10,marginBottom:10}}>
-            <div style={{fontSize:11,color:C.orange,fontWeight:600,marginBottom:6}}>🗺️ {pendingInvites?.length} invitation(s) en attente</div>
+            <div style={{fontSize:11,color:C.orange,fontWeight:600,marginBottom:6}}>🗺️ {pendingInvites?.length} {t('inbox.pending')}</div>
             {pendingInvites.map(inv=>{
               const org=getProfile(inv.organizer_id);
               return <div key={inv.id} style={{background:C.card,border:'1px solid '+C.border,borderRadius:8,padding:10,marginBottom:6}}>
                 <div style={{fontWeight:600,fontSize:12,marginBottom:3}}>{org.avatar} {org.name}</div>
                 <div style={{color:C.muted,fontSize:11,marginBottom:6}}>📍 {inv.city} · {inv.role} · {inv.date}</div>
                 <div style={{display:'flex',gap:6}}>
-                  <Btn v='success' sz='sm' disabled={invLoading[inv.id]} onClick={()=>respond(inv.id,'accepted')}>✓ Accepter</Btn>
-                  <Btn v='danger' sz='sm' disabled={invLoading[inv.id]} onClick={()=>respond(inv.id,'declined')}>✕ Décliner</Btn>
+                  <Btn v='success' sz='sm' disabled={invLoading[inv.id]} onClick={()=>respond(inv.id,'accepted')}>{t('inbox.accept')}</Btn>
+                  <Btn v='danger' sz='sm' disabled={invLoading[inv.id]} onClick={()=>respond(inv.id,'declined')}>{t('inbox.decline')}</Btn>
                   <Btn v='ghost' sz='sm' onClick={()=>onChat(getProfile(inv.organizer_id))}>💬</Btn>
                 </div>
               </div>;
@@ -666,16 +687,16 @@ const other=getProfile(m.from_id===myId?m.to_id:m.from_id);          return <div
             </div>
           </div>;
         })}
-        {messages?.length===0&&pendingInvites?.length===0&&<div style={{color:C.dim,fontSize:13,textAlign:'center',padding:'24px 0'}}>Aucun message</div>}
+        {messages?.length===0&&pendingInvites?.length===0&&<div style={{color:C.dim,fontSize:13,textAlign:'center',padding:'24px 0'}}>{t('inbox.empty')}</div>}
       </div>
       <div style={{background:C.card,border:'1px solid '+C.border,borderRadius:11,padding:20}}>
-        {!sel?<div style={{color:C.dim,textAlign:'center',paddingTop:50,fontSize:13}}>Sélectionnez un message</div>:(
+        {!sel?<div style={{color:C.dim,textAlign:'center',paddingTop:50,fontSize:13}}>{t('inbox.select')}</div>:(
           <div>
             <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:14,paddingBottom:12,borderBottom:'1px solid '+C.border}}>
               <span style={{fontSize:26}}>{getProfile(sel.from_id===myId?sel.to_id:sel.from_id).avatar||'👤'}</span>
               <div>
                 <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700}}>{sel.subject}</div>
-                <div style={{color:C.muted,fontSize:11}}>De : {getProfile(sel.from_id).name} · {new Date(sel.created_at).toLocaleDateString('fr')}</div>
+                <div style={{color:C.muted,fontSize:11}}>{t('inbox.from')} {getProfile(sel.from_id).name} · {new Date(sel.created_at).toLocaleDateString('fr')}</div>
               </div>
             </div>
             <div style={{color:C.muted,fontSize:13,lineHeight:1.7,marginBottom:14}}>{sel.body}</div>
@@ -684,7 +705,7 @@ const other=getProfile(m.from_id===myId?m.to_id:m.from_id);          return <div
               const p = profiles.find(pr => pr.id===otherId || pr.user_id===otherId);
               if(p) onChat(p);
               else toast.error('Profil introuvable');
-            }}>💬 Répondre par chat</Btn>
+            }}>{t('inbox.reply_chat')}</Btn>
           </div>
         )}
       </div>
@@ -699,6 +720,7 @@ const other=getProfile(m.from_id===myId?m.to_id:m.from_id);          return <div
 function PromoModule({ myProfile, isSubscribed }) {
   const [pkg, setPkg] = useState(null);
   const [step, setStep] = useState('list');
+  const t = useT();
   const [ev, setEv] = useState({ title:'', date:'', venue:'', city:'', genre:'', desc:'', visual:'🎷', budget:89 });
   const [pl, setPl] = useState({ stagemap:true, meta:false, google:false, tiktok:false, spotify:false });
   const totalBudget = Object.entries(pl).filter(([k,v])=>v&&k!=='stagemap')?.length*30+ev.budget;
@@ -725,8 +747,8 @@ function PromoModule({ myProfile, isSubscribed }) {
       <div style={{marginBottom:18,display:'flex',gap:12,alignItems:'center'}}>
         <span style={{fontSize:28}}>📣</span>
         <div>
-          <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>Promotion et Publicité</h2>
-          <p style={{color:C.muted,fontSize:12,marginTop:2}}>Diffusez vos événements sur StageMap + plateformes externes</p>
+          <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.cream,fontWeight:700}}>{t('promo.title')}</h2>
+          <p style={{color:C.muted,fontSize:12,marginTop:2}}>{t('promo.subtitle')}</p>
         </div>
       </div>
       {step==='list'&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:14}}>
@@ -780,7 +802,7 @@ function PromoModule({ myProfile, isSubscribed }) {
           </div>
         </div>
         <div style={{display:'flex',gap:10,marginTop:16}}>
-          <Btn onClick={launch} sz='lg'>💳 Payer et lancer la campagne</Btn>
+          <Btn onClick={launch} sz='lg'>{t('promo.pay')}</Btn>
           <Btn v='secondary' onClick={()=>setStep('list')}>← Changer</Btn>
         </div>
       </div>}
@@ -791,6 +813,8 @@ function PromoModule({ myProfile, isSubscribed }) {
 /* ── My Profile Tab ── */
 function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAddProfile, isSubscribed }) {
   const { updateUserProfile } = useStore();
+  const t = useT();
+  const tl = { artist: t('type.artist'), venue: t('type.venue'), fan: t('type.fan') };
   const [p, setP] = useState({
     ...profile,
     links: Array.isArray(profile.links) ? profile.links.join(', ') : profile.links || '',
@@ -815,20 +839,20 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
       setProfile(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-      toast.success('Profil mis à jour ✓');
+      toast.success(t('profile_updated'));
     } catch(e) { toast.error(e.message); }
     setLoading(false);
   };
 
   const vis = p.profile_visibility || {};
   const visFields = [
-    { k:'show_bio',       label:'Biographie',            icon:'📝' },
-    { k:'show_fee',       label:'Tarif / Cachet',         icon:'💰' },
-    { k:'show_links',     label:'Liens & Médias',         icon:'🔗' },
-    { k:'show_genre',     label:'Genre musical',          icon:'🎼' },
-    { k:'show_region',    label:'Région & Pays',          icon:'📍' },
-    { k:'show_available', label:'Statut disponible',      icon:'✅' },
-    { k:'show_events',    label:'Événements à venir',     icon:'📅' },
+    { k:'show_bio',       label: t('vis.bio'),       icon:'📝' },
+    { k:'show_fee',       label: t('vis.fee'),       icon:'💰' },
+    { k:'show_links',     label: t('vis.links'),     icon:'🔗' },
+    { k:'show_genre',     label: t('vis.genre'),     icon:'🎼' },
+    { k:'show_region',    label: t('vis.region'),    icon:'📍' },
+    { k:'show_available', label: t('vis.available'), icon:'✅' },
+    { k:'show_events',    label: t('vis.events'),    icon:'📅' },
   ];
 
   return (
@@ -836,27 +860,27 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
 
       {/* Header */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:C.cream, fontWeight:700 }}>Mon Profil</div>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:C.cream, fontWeight:700 }}>{t('me.title')}</div>
         <div style={{ display:'flex', gap:8 }}>
-          <Btn v='secondary' sz='sm' onClick={() => window.open('/profile/'+profile.id, '_blank')}>🌐 Page publique</Btn>
-          <Btn v='ghost' sz='sm' onClick={onLogout}>Déconnexion</Btn>
+          <Btn v='secondary' sz='sm' onClick={() => window.open('/profile/'+profile.id, '_blank')}>{t('me.public_page')}</Btn>
+          <Btn v='ghost' sz='sm' onClick={onLogout}>{t('btn.logout')}</Btn>
         </div>
       </div>
 
       {/* Subscription badge */}
       <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-        <Pill color={typeColors[profile.type]}>{typeLabels[profile.type]}</Pill>
-        {isSubscribed && <Pill color={C.glow}>✦ Abonné</Pill>}
-        {profile.verified && <Pill color={C.blue}>✓ Vérifié</Pill>}
+        <Pill color={typeColors[profile.type]}>{tl[profile.type]}</Pill>
+        {isSubscribed && <Pill color={C.glow}>{t('status.subscribed')}</Pill>}
+        {profile.verified && <Pill color={C.blue}>{t('status.verified')}</Pill>}
         <span style={{ fontSize:11, color:C.dim }}>📧 {user.email}</span>
       </div>
 
       {/* ── Profile fields ── */}
       <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:16, padding:24, display:'flex', flexDirection:'column', gap:14 }}>
-        <div style={{ fontSize:10, color:C.dim, letterSpacing:1.5, textTransform:'uppercase' }}>Informations du profil</div>
+        <div style={{ fontSize:10, color:C.dim, letterSpacing:1.5, textTransform:'uppercase' }}>{t('me.info')}</div>
 
         <div>
-          <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:7 }}>Avatar</div>
+          <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:7 }}>{t('me.avatar')}</div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
             {AVATARS.map(a => (
               <button key={a} onClick={() => set('avatar', a)}
@@ -868,11 +892,11 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
         </div>
 
         {[
-          { l:'Nom artistique', k:'name' },
-          { l:'Genre',          k:'genre', sel:GENRES },
-          { l:'Biographie',     k:'bio',   ml:true },
-          { l:'Cachet / Tarif (ex: 500$, sur devis…)', k:'fee' },
-          { l:'Liens médias & réseaux (YouTube, Spotify, Instagram… séparés par virgule)', k:'links' },
+          { l: t('me.artist_name'), k:'name' },
+          { l: t('me.genre'),       k:'genre', sel:GENRES },
+          { l: t('me.bio'),         k:'bio',   ml:true },
+          { l: t('me.fee'),         k:'fee' },
+          { l: t('me.links'),       k:'links' },
         ].map(f => (
           <div key={f.k}>
             <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>{f.l}</div>
@@ -884,22 +908,22 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
           <div>
-            <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>Région</div>
+            <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>{t('me.region')}</div>
             <Sel value={p.region||'Montréal'} onChange={v => set('region', v)} options={Object.keys(REGION_COORDS)}/>
           </div>
           <div>
-            <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>Pays</div>
+            <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>{t('me.country')}</div>
             <Sel value={p.country||'Canada'} onChange={v => set('country', v)} options={['Canada','France','Belgique','Suisse','Allemagne','Espagne','Pays-Bas','Autre']}/>
           </div>
         </div>
 
         <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
           <input type='checkbox' checked={!!p.available} onChange={e => set('available', e.target.checked)} style={{ accentColor:C.orange, width:16, height:16 }}/>
-          <span style={{ fontSize:13, color:C.text }}>Disponible pour booking</span>
+          <span style={{ fontSize:13, color:C.text }}>{t('me.available')}</span>
         </label>
 
         <Btn onClick={save} disabled={loading} sz='lg'>
-          {loading ? <Spinner/> : saved ? '✓ Sauvegardé' : '💾 Sauvegarder les modifications'}
+          {loading ? <Spinner/> : saved ? t('me.saved') : t('me.save')}
         </Btn>
       </div>
 
@@ -907,10 +931,10 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
       <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:16, padding:24 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
           <div>
-            <div style={{ fontSize:10, color:C.dim, letterSpacing:1.5, textTransform:'uppercase', marginBottom:4 }}>Visibilité de la page publique</div>
-            <div style={{ fontSize:12, color:C.muted }}>Choisissez ce que les visiteurs voient sur votre page</div>
+            <div style={{ fontSize:10, color:C.dim, letterSpacing:1.5, textTransform:'uppercase', marginBottom:4 }}>{t('me.vis_title')}</div>
+            <div style={{ fontSize:12, color:C.muted }}>{t('me.vis_desc')}</div>
           </div>
-          <Btn v='ghost' sz='sm' onClick={() => window.open('/profile/'+profile.id, '_blank')}>Aperçu →</Btn>
+          <Btn v='ghost' sz='sm' onClick={() => window.open('/profile/'+profile.id, '_blank')}>{t('btn.preview')}</Btn>
         </div>
 
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -923,7 +947,7 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
                   <span style={{ fontSize:13, color:isOn?C.text:C.muted }}>{label}</span>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span style={{ fontSize:11, color:isOn?C.green:C.dim }}>{isOn?'Visible':'Masqué'}</span>
+                  <span style={{ fontSize:11, color:isOn?C.green:C.dim }}>{isOn?t('me.vis_on'):t('me.vis_off')}</span>
                   <div onClick={() => setVis(k, !isOn)}
                     style={{ width:40, height:22, borderRadius:11, background:isOn?C.green:C.border, cursor:'pointer', position:'relative', transition:'background .2s', flexShrink:0 }}>
                     <div style={{ position:'absolute', top:3, left:isOn?21:3, width:16, height:16, borderRadius:'50%', background:'#fff', transition:'left .2s', boxShadow:'0 1px 4px #00000040' }}/>
@@ -935,35 +959,35 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
         </div>
 
         <div style={{ marginTop:14, fontSize:11, color:C.dim, lineHeight:1.7, background:C.tag, borderRadius:8, padding:'8px 12px' }}>
-          ℹ️ Nom, avatar et type de profil sont toujours visibles. Sauvegardez le profil après avoir modifié la visibilité.
+          {t('me.vis_note')}
         </div>
       </div>
 
       {/* ── Other profiles ── */}
       {userProfiles && userProfiles.length > 1 && (
         <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:12, padding:18 }}>
-          <div style={{ fontWeight:700, color:C.text, marginBottom:12, fontSize:13 }}>Mes autres profils</div>
+          <div style={{ fontWeight:700, color:C.text, marginBottom:12, fontSize:13 }}>{t('me.other_profiles')}</div>
           {userProfiles.filter(up => up.id !== profile.id).map(up => (
             <div key={up.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid '+C.border+'44' }}>
               <span style={{ fontSize:22 }}>{up.avatar}</span>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:13, fontWeight:600, color:C.text }}>{up.name}</div>
-                <div style={{ fontSize:11, color:C.muted }}>{typeLabels[up.type]} · {up.region}</div>
+                <div style={{ fontSize:11, color:C.muted }}>{tl[up.type]} · {up.region}</div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <Btn v='secondary' onClick={onAddProfile} full>＋ Ajouter un profil</Btn>
+      <Btn v='secondary' onClick={onAddProfile} full>{t('btn.add_profile')}</Btn>
 
       {!isSubscribed && (
         <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:12, padding:18 }}>
-          <div style={{ fontWeight:700, color:C.orange, marginBottom:6, fontSize:14 }}>✦ Activer l'abonnement</div>
-          <div style={{ color:C.muted, fontSize:12, marginBottom:14, lineHeight:1.7 }}>Booking illimité · Streaming · Messagerie pro · IA Tournée · 1 boost publicitaire/mois</div>
+          <div style={{ fontWeight:700, color:C.orange, marginBottom:6, fontSize:14 }}>{t('me.subscribe')}</div>
+          <div style={{ color:C.muted, fontSize:12, marginBottom:14, lineHeight:1.7 }}>{t('me.subscribe_desc')}</div>
           <div style={{ display:'flex', gap:10 }}>
-            <Btn onClick={() => startSubscription('monthly', profile.id).catch(e => toast.error(e.message))}>19$/mois</Btn>
-            <Btn v='secondary' onClick={() => startSubscription('annual', profile.id).catch(e => toast.error(e.message))}>149$/an (−22%)</Btn>
+            <Btn onClick={() => startSubscription('monthly', profile.id).catch(e => toast.error(e.message))}>{t('me.monthly')}</Btn>
+            <Btn v='secondary' onClick={() => startSubscription('annual', profile.id).catch(e => toast.error(e.message))}>{t('me.annual')}</Btn>
           </div>
         </div>
       )}
@@ -974,26 +998,25 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
 /* ── Upgrade Modal ── */
 function UpgradeModal({ reason, profile, onClose }) {
   const isFan = reason === 'fan';
+  const t = useT();
   return (
     <div style={{ position:'fixed', inset:0, background:'#00000090', zIndex:3000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{ background:C.bg2, border:'1px solid '+C.border, borderRadius:16, maxWidth:420, width:'100%', padding:32, boxShadow:'0 40px 100px #00000090', textAlign:'center' }}>
         <div style={{ fontSize:44, marginBottom:12 }}>🔒</div>
         <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:C.cream, marginBottom:10 }}>
-          {isFan ? 'Section réservée aux professionnels' : 'Fonctionnalité Premium'}
+          {isFan ? t('upg.fan_title') : t('upg.prem_title')}
         </div>
         <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:22 }}>
-          {isFan
-            ? "Cette section est réservée aux artistes et lieux. Créez un profil Artiste ou Lieu pour accéder à l'IA Tournée, l'agenda et les campagnes."
-            : "Abonnez-vous pour débloquer l'IA Tournée, l'agenda complet, la comparaison de disponibilités et les campagnes publicitaires."}
+          {isFan ? t('upg.fan_desc') : t('upg.prem_desc')}
         </div>
         {isFan
-          ? <Btn onClick={onClose}>Compris</Btn>
+          ? <Btn onClick={onClose}>{t('upg.understood')}</Btn>
           : <>
             <div style={{ display:'flex', gap:10, justifyContent:'center', marginBottom:12 }}>
-              <Btn onClick={()=>startSubscription('monthly',profile.id).catch(e=>toast.error(e.message))}>19 $/mois</Btn>
-              <Btn v='secondary' onClick={()=>startSubscription('annual',profile.id).catch(e=>toast.error(e.message))}>149 $/an (−22%)</Btn>
+              <Btn onClick={()=>startSubscription('monthly',profile.id).catch(e=>toast.error(e.message))}>{t('me.monthly')}</Btn>
+              <Btn v='secondary' onClick={()=>startSubscription('annual',profile.id).catch(e=>toast.error(e.message))}>{t('me.annual')}</Btn>
             </div>
-            <button onClick={onClose} style={{ background:'none', border:'none', color:C.dim, cursor:'pointer', fontSize:11 }}>Pas maintenant</button>
+            <button onClick={onClose} style={{ background:'none', border:'none', color:C.dim, cursor:'pointer', fontSize:11 }}>{t('upg.not_now')}</button>
           </>
         }
       </div>
@@ -1006,7 +1029,8 @@ function UpgradeModal({ reason, profile, onClose }) {
 ═══════════════════════════════════ */
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfiles = [], switchProfile } = useStore();
+  const { session, user, profile, setProfile, setProfiles, tab, setTab, userProfiles = [], switchProfile, lang, setLang } = useStore();
+  const t = useT();
   const [profiles, setLocalProfiles] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -1071,7 +1095,7 @@ export default function Dashboard() {
   const handleAddProfile = () => navigate('/onboard');
   const handleSwitchProfile = (profileId) => {
     switchProfile(profileId);
-    toast.success('Profil changé ✓');
+    toast.success(t('profile_changed'));
   };
 
   const openChat = (p) => { setChatPartner(p); setInviteTarget(null); };
@@ -1084,14 +1108,14 @@ export default function Dashboard() {
     (!search || (a.name+a.genre+(a.region||'')+(a.country||'')).toLowerCase().includes(search.toLowerCase()))
   );
   const TABS = [
-    { k:'map',    i:'🗺️',  l:'Carte' },
-    { k:'list',   i:'📋',  l:'Répertoire' },
-    { k:'ai',     i:'🤖',  l:'IA Tournée' },
-    { k:'inbox',  i:'💬',  l:'Messages', badge: unread },
-    { k:'cal',    i:'📅',  l:'Agenda' },
-    { k:'promo',  i:'📣',  l:'Promotion' },
-    { k:'me',     i:'👤',  l:'Profil' },
-  ].map(t => ({ ...t, locked: lockedFor(t.k) }));
+    { k:'map',    i:'🗺️',  l: t('nav.map') },
+    { k:'list',   i:'📋',  l: t('nav.directory') },
+    { k:'ai',     i:'🤖',  l: t('nav.ai') },
+    { k:'inbox',  i:'💬',  l: t('nav.inbox'), badge: unread },
+    { k:'cal',    i:'📅',  l: t('nav.calendar') },
+    { k:'promo',  i:'📣',  l: t('nav.promo') },
+    { k:'me',     i:'👤',  l: t('nav.profile') },
+  ].map(tab => ({ ...tab, locked: lockedFor(tab.k) }));
 
   return (
     <div style={{fontFamily:"'Outfit',sans-serif",background:C.bg,color:C.text,minHeight:'100vh'}}>
@@ -1100,7 +1124,7 @@ export default function Dashboard() {
           <span style={{fontSize:22}}>🎭</span>
           <div>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,color:C.glow,letterSpacing:-.5}}>StageMap</div>
-            <div style={{fontSize:9,color:C.dim,letterSpacing:2,textTransform:'uppercase',marginTop:-2}}>Réseau Scène Global</div>
+            <div style={{fontSize:9,color:C.dim,letterSpacing:2,textTransform:'uppercase',marginTop:-2}}>{t('nav.tagline')}</div>
           </div>
         </div>
 
@@ -1114,6 +1138,10 @@ export default function Dashboard() {
           ))}
         </nav>
 
+        <button onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')}
+          style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:20, padding:'4px 10px', fontSize:11, color:C.muted, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:600, flexShrink:0 }}>
+          {lang === 'fr' ? '🇬🇧 EN' : '🇫🇷 FR'}
+        </button>
         {profile && (
           <ProfileSwitcher
             profile={profile}
@@ -1127,19 +1155,19 @@ export default function Dashboard() {
 
       {(tab==='map'||tab==='list')&&(
         <div style={{background:C.card,borderBottom:'1px solid '+C.border,padding:'8px 20px',display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder='🔍 Nom, région, genre, pays...' style={{background:C.tag,border:'1px solid '+C.border,borderRadius:8,padding:'6px 12px',color:C.text,fontFamily:"'Outfit',sans-serif",fontSize:12,outline:'none',width:220}}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={t('header.search_ph')} style={{background:C.tag,border:'1px solid '+C.border,borderRadius:8,padding:'6px 12px',color:C.text,fontFamily:"'Outfit',sans-serif",fontSize:12,outline:'none',width:220}}/>
           {['all','artist','venue','fan'].map(f=>(
             <button key={f} onClick={()=>setFilter(f)} style={{background:filter===f?(typeColors[f]||C.orange)+'22':C.tag,color:filter===f?(typeColors[f]||C.orange):C.muted,border:'1px solid '+(filter===f?(typeColors[f]||C.orange):C.border),borderRadius:20,padding:'3px 11px',cursor:'pointer',fontSize:11,fontWeight:filter===f?600:400,fontFamily:"'Outfit',sans-serif"}}>
-              {f==='all'?'Tous':(f==='artist'?'🎵 ':f==='venue'?'🏛️ ':'💛 ')+typeLabels[f]}
+              {f==='all'?t('filter.all'):(f==='artist'?'🎵 ':f==='venue'?'🏛️ ':'💛 ')+t('type.'+f)}
             </button>
           ))}
           <button onClick={()=>setFilter('events')} style={{background:filter==='events'?C.purple+'22':C.tag,color:filter==='events'?C.purple:C.muted,border:'1px solid '+(filter==='events'?C.purple:C.border),borderRadius:20,padding:'3px 11px',cursor:'pointer',fontSize:11,fontWeight:filter==='events'?600:400,fontFamily:"'Outfit',sans-serif"}}>
-            📅 Événements
+            {t('filter.events')}
           </button>
           <span style={{marginLeft:'auto',color:C.dim,fontSize:11}}>
             {filter==='events'
-              ? publicEvents.length+' événement'+(publicEvents.length!==1?'s':'')
-              : loadingProfiles?'Chargement...':(filtered?.length+' profils')}
+              ? t('events_filter_count', {n: publicEvents.length, s: publicEvents.length!==1?'s':''})
+              : loadingProfiles ? t('loading') : t('profiles_n', {n: filtered?.length})}
           </span>
         </div>
       )}
@@ -1150,18 +1178,18 @@ export default function Dashboard() {
           <div className='fade-in' style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
             {loadingProfiles&&profiles.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
             {filtered.map(a=><ProfileCard key={a.id} a={a} myId={profile?.id} onOpen={setProfileModal}/>)}
-            {!loadingProfiles&&filtered?.length===0&&<div style={{gridColumn:'1/-1',color:C.dim,textAlign:'center',padding:'30px 0'}}>Aucun profil trouvé</div>}
+            {!loadingProfiles&&filtered?.length===0&&<div style={{gridColumn:'1/-1',color:C.dim,textAlign:'center',padding:'30px 0'}}>{t('no_profiles')}</div>}
           </div>
         )}
         {tab==='list'&&filter==='events'&&(
           <div className='fade-in'>
-            {publicEvents.length===0&&<div style={{color:C.dim,textAlign:'center',padding:'40px 0',fontSize:13}}>Aucun événement public à venir</div>}
+            {publicEvents.length===0&&<div style={{color:C.dim,textAlign:'center',padding:'40px 0',fontSize:13}}>{t('events_public_empty')}</div>}
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:10}}>
               {publicEvents.map(ev=>{
                 const p=ev.profile;
                 const ec=ev.event_type==='booking'?C.amber:ev.event_type==='event'?C.orange:C.muted;
                 return (
-                  <div key={ev.id} onClick={()=>p&&setProfileModal(p)}
+                  <div key={ev.id} onClick={()=>p&&navigate('/profile/'+p.id+'?event='+ev.id)}
                     style={{background:C.card,border:'1px solid '+C.purple+'44',borderLeft:'3px solid '+C.purple,borderRadius:9,padding:'12px 14px',cursor:'pointer',transition:'all .15s'}}
                     onMouseEnter={e=>e.currentTarget.style.background=C.cardHov}
                     onMouseLeave={e=>e.currentTarget.style.background=C.card}>
@@ -1201,8 +1229,9 @@ export default function Dashboard() {
         {tab==='me'&&profile&&<MyProfileTab profile={profile} userProfiles={userProfiles||[profile]} setProfile={setProfile} user={user} onLogout={handleLogout} onAddProfile={handleAddProfile} isSubscribed={isSubscribed}/>}
       </main>
 
-      <footer style={{borderTop:'1px solid '+C.border,padding:'12px 20px',display:'flex',justifyContent:'space-between',color:C.dim,fontSize:11}}>        <span>© 2026 StageMap — Réseau Scène Global</span>
-        <span>{profiles?.length} profils enregistrés</span>
+      <footer style={{borderTop:'1px solid '+C.border,padding:'12px 20px',display:'flex',justifyContent:'space-between',color:C.dim,fontSize:11}}>
+        <span>{t('footer.copy')}</span>
+        <span>{t('footer.count', {n: profiles?.length})}</span>
       </footer>
 
       {profileModal&&<ProfileModal a={profileModal} myId={profile?.id} onClose={()=>setProfileModal(null)} onChat={openChat} onInvite={openInvite}/>}

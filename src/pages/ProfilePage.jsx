@@ -1,8 +1,10 @@
 // src/pages/ProfilePage.jsx
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { useT } from '../lib/i18n';
+import { useStore } from '../lib/store';
 
 const C = {
   bg:'#140c00', bg2:'#1e1100', card:'#271500', cardHov:'#301a00',
@@ -83,6 +85,9 @@ function generateEventPost(ev, profile, profileUrl) {
 export default function ProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { lang, setLang } = useStore();
+  const t = useT();
   const [profile, setProfile] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -115,7 +120,13 @@ export default function ProfilePage() {
         .gt('date_start', new Date().toISOString())
         .order('date_start', { ascending: true })
         .limit(20);
-      setEvents(evs || []);
+      const loaded = evs || [];
+      setEvents(loaded);
+      const evParam = searchParams.get('event');
+      if (evParam) {
+        const match = loaded.find(e => e.id === evParam);
+        if (match) setSelectedEv(match);
+      }
       setLoading(false);
     };
     load();
@@ -136,8 +147,8 @@ export default function ProfilePage() {
   if (notFound) return (
     <div style={{ background: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.muted, gap: 12 }}>
       <div style={{ fontSize: 48 }}>🎭</div>
-      <div style={{ fontSize: 16, color: C.text }}>Profil introuvable</div>
-      <button onClick={() => navigate('/')} style={{ background: 'none', border: '1px solid '+C.border, color: C.muted, borderRadius: 8, padding: '6px 16px', cursor: 'pointer', fontSize: 12 }}>← Retour</button>
+      <div style={{ fontSize: 16, color: C.text }}>{t('pub.not_found')}</div>
+      <button onClick={() => navigate('/')} style={{ background: 'none', border: '1px solid '+C.border, color: C.muted, borderRadius: 8, padding: '6px 16px', cursor: 'pointer', fontSize: 12 }}>{t('pub.back')}</button>
     </div>
   );
 
@@ -162,11 +173,15 @@ export default function ProfilePage() {
 
       {/* Top bar */}
       <div style={{ background: C.bg, borderBottom: '1px solid '+C.border, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 10, position: 'sticky', top: 0, zIndex: 100, backdropFilter: 'blur(8px)' }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: '1px solid '+C.border, color: C.muted, borderRadius: 7, padding: '4px 11px', cursor: 'pointer', fontSize: 11, fontFamily: "'Outfit', sans-serif" }}>← Retour</button>
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: '1px solid '+C.border, color: C.muted, borderRadius: 7, padding: '4px 11px', cursor: 'pointer', fontSize: 11, fontFamily: "'Outfit', sans-serif" }}>{t('pub.back')}</button>
         <div style={{ flex: 1 }} />
         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, color: C.glow, fontWeight: 700 }}>🎭 StageMap</div>
         <div style={{ flex: 1 }} />
-        <button onClick={copyLink} style={{ background: 'none', border: '1px solid '+C.border, color: C.muted, borderRadius: 7, padding: '4px 11px', cursor: 'pointer', fontSize: 11, fontFamily: "'Outfit', sans-serif" }}>🔗 Partager</button>
+        <button onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')}
+          style={{ background: 'none', border: '1px solid '+C.border, color: C.dim, borderRadius: 7, padding: '4px 11px', cursor: 'pointer', fontSize: 11, fontFamily: "'Outfit', sans-serif" }}>
+          {lang === 'fr' ? '🇬🇧 EN' : '🇫🇷 FR'}
+        </button>
+        <button onClick={copyLink} style={{ background: 'none', border: '1px solid '+C.border, color: C.muted, borderRadius: 7, padding: '4px 11px', cursor: 'pointer', fontSize: 11, fontFamily: "'Outfit', sans-serif" }}>{t('pub.share')}</button>
       </div>
 
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '32px 20px 60px' }}>
@@ -180,8 +195,8 @@ export default function ProfilePage() {
             <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 700, color: C.cream, lineHeight: 1.1, marginBottom: 6 }}>{profile.name}</h1>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 6 }}>
               <span style={{ background: tc+'22', color: tc, border: '1px solid '+tc+'44', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>{typeLabels[profile.type]}</span>
-              {show('show_available') && profile.available && <span style={{ color: C.green, fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, display: 'inline-block' }} />Disponible</span>}
-              {profile.verified && <span style={{ color: C.blue, fontSize: 11 }}>✓ Vérifié</span>}
+              {show('show_available') && profile.available && <span style={{ color: C.green, fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, display: 'inline-block' }} />{t('status.available')}</span>}
+              {profile.verified && <span style={{ color: C.blue, fontSize: 11 }}>{t('status.verified')}</span>}
             </div>
             {show('show_genre') && <div style={{ color: C.muted, fontSize: 12, marginBottom: 2 }}>{profile.genre}</div>}
             {show('show_region') && <div style={{ color: C.dim, fontSize: 11 }}>📍 {profile.region}{profile.country ? ', ' + profile.country : ''}</div>}
@@ -201,7 +216,7 @@ export default function ProfilePage() {
         {/* Media embeds */}
         {show('show_links') && embeds.length > 0 && (
           <div style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 2 }}>Musique & Médias</div>
+            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 2 }}>{t('pub.media')}</div>
             {embeds.map((m, i) => (
               <div key={i} style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid '+C.border }}>
                 {m.type === 'youtube' && (
@@ -240,7 +255,7 @@ export default function ProfilePage() {
         {/* Social / link buttons */}
         {show('show_links') && linkButtons.length > 0 && (
           <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>Liens</div>
+            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>{t('pub.links')}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {linkButtons.map((m, i) => (
                 <a key={i} href={m.url} target='_blank' rel='noreferrer'
@@ -257,7 +272,7 @@ export default function ProfilePage() {
         {/* Upcoming public events */}
         {show('show_events') && events.length > 0 && (
           <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>Événements à venir</div>
+            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>{t('pub.events')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {events.map(ev => (
                 <div key={ev.id} onClick={() => setSelectedEv(ev)}
@@ -288,7 +303,7 @@ export default function ProfilePage() {
             <div onClick={e => e.stopPropagation()}
               style={{ background: C.bg2, border: '1px solid '+C.purple+'66', borderRadius: 16, maxWidth: 440, width: '100%', padding: 28, boxShadow: '0 40px 100px #00000090', fontFamily: "'Outfit', sans-serif" }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-                <span style={{ background: C.purple+'22', color: C.purple, border: '1px solid '+C.purple+'44', borderRadius: 20, padding: '2px 10px', fontSize: 10, fontWeight: 600 }}>📅 Événement public</span>
+                <span style={{ background: C.purple+'22', color: C.purple, border: '1px solid '+C.purple+'44', borderRadius: 20, padding: '2px 10px', fontSize: 10, fontWeight: 600 }}>{t('ev.public')}</span>
                 <button onClick={() => setSelectedEv(null)} style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
               </div>
 
@@ -330,7 +345,7 @@ export default function ProfilePage() {
                     setTimeout(() => setCopiedAnnonce(false), 2500);
                   }}
                   style={{ width:'100%', padding:'10px 0', background:copiedAnnonce?C.green+'22':'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', color:copiedAnnonce?C.green:'#fff', border:'1px solid '+(copiedAnnonce?C.green+'55':'transparent'), borderRadius:9, fontFamily:"'Outfit',sans-serif", fontWeight:600, fontSize:13, cursor:'pointer', transition:'all .2s' }}>
-                  {copiedAnnonce ? '✓ Annonce copiée !' : "📋 Copier l'annonce"}
+                  {copiedAnnonce ? t('ev.copied') : t('ev.copy')}
                 </button>
                 <div style={{ display:'flex', gap:8 }}>
                   {[
@@ -347,7 +362,7 @@ export default function ProfilePage() {
                   ))}
                 </div>
                 <a href='/dashboard' style={{ display:'block', textAlign:'center', background:'linear-gradient(135deg,'+C.purple+',#8030cc)', color:'#fff', borderRadius:9, padding:'9px 0', fontSize:12, fontWeight:600, textDecoration:'none' }}>
-                  Rejoindre StageMap pour réserver →
+                  {t('ev.book')}
                 </a>
               </div>
             </div>
@@ -357,10 +372,10 @@ export default function ProfilePage() {
         {/* Footer CTA */}
         <div style={{ borderTop: '1px solid '+C.border, paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div style={{ fontSize: 11, color: C.dim }}>
-            Profil sur <span style={{ color: C.glow, fontFamily: "'Cormorant Garamond', serif", fontWeight: 700 }}>StageMap</span>
+            {t('pub.profile_on')} <span style={{ color: C.glow, fontFamily: "'Cormorant Garamond', serif", fontWeight: 700 }}>StageMap</span>
           </div>
           <a href='/dashboard' style={{ background: 'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', color: '#fff', borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 600, textDecoration: 'none', fontFamily: "'Outfit', sans-serif" }}>
-            Rejoindre StageMap →
+            {t('pub.join')}
           </a>
         </div>
 

@@ -41,6 +41,8 @@ export const useStore = create(
       setFilter: (filter) => set({ filter }),
       search: '',
       setSearch: (search) => set({ search }),
+      lang: 'fr',
+      setLang: (lang) => set({ lang }),
 
       // ── Profiles cache ────────────────────────
       profiles: [],
@@ -87,6 +89,7 @@ export const useStore = create(
         profile: state.profile,
         userProfiles: state.userProfiles,
         tab: state.tab,
+        lang: state.lang,
       }),
     }
   )
