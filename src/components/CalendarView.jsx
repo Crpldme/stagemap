@@ -67,8 +67,60 @@ function Btn({ children, onClick, v = 'primary', sz = 'md', disabled, full, styl
   return <button onClick={onClick} disabled={disabled} style={{ ...base, ...sizes, ...vars }}>{children}</button>;
 }
 
+/* ── Venue Picker ── */
+function VenuePicker({ value, onChange, venues, placeholder }) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+
+  const filtered = venues.filter(v =>
+    (v.name + (v.region || '')).toLowerCase().includes((query || '').toLowerCase())
+  ).slice(0, 8);
+
+  const select = (v) => {
+    const loc = v.name + (v.region ? ', ' + v.region : '');
+    setQuery(loc);
+    onChange(loc);
+    setOpen(false);
+  };
+
+  const handleChange = (val) => {
+    setQuery(val);
+    onChange(val);
+    setOpen(true);
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        value={query}
+        onChange={e => handleChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder}
+        style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: 'none', width: '100%' }}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: C.bg2, border: '1px solid '+C.border, borderRadius: 8, zIndex: 100, boxShadow: '0 8px 24px #00000080', overflow: 'hidden' }}>
+          {filtered.map(v => (
+            <div key={v.id} onMouseDown={() => select(v)}
+              style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+              onMouseEnter={e => e.currentTarget.style.background = C.card}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              <span style={{ fontSize: 16 }}>{v.avatar || '🏛️'}</span>
+              <div>
+                <div style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>{v.name}</div>
+                {v.region && <div style={{ fontSize: 10, color: C.muted }}>{v.region}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Event Form Modal ── */
-function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
+function EventFormModal({ date, event, myId, myProfile, venues = [], onSave, onDelete, onClose }) {
   const t = useT();
   const isEdit = !!event;
 
@@ -88,7 +140,7 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
   };
 
   const [form, setForm] = useState({
-    title:        event?.title || '',
+    title:        event?.title || (!isEdit && myProfile?.name) || '',
     description:  event?.description || '',
     event_type:   event?.event_type || 'availability',
     date_start:   event?.date_start ? getDateStr(event.date_start) : (date ? toDateStr(date) : ''),
@@ -214,9 +266,9 @@ function EventFormModal({ date, event, myId, onSave, onDelete, onClose }) {
               <input type='time' value={form.time_end} onChange={e => set('time_end', e.target.value)} style={{ background: C.tag, border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: 'none', width: '100%' }} />
             </div>
           </div>
-          <div>
+          <div style={{ position: 'relative' }}>
             <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.location')}</div>
-            <Inp value={form.location} onChange={v => set('location', v)} placeholder={t('evf.ph_location')} />
+            <VenuePicker value={form.location} onChange={v => set('location', v)} venues={venues} placeholder={t('evf.ph_location')} />
           </div>
           <div>
             <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.desc')}</div>
@@ -842,6 +894,8 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
           date={formDate}
           event={editEvent}
           myId={myId}
+          myProfile={myProfile}
+          venues={profiles.filter(p => p.type === 'venue')}
           onSave={(entry) => {
             setFormDate(null); setEditEvent(null); loadEntries();
             if (entry?.visibility === 'public') setShareEvent(entry);
