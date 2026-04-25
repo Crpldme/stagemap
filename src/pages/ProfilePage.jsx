@@ -97,9 +97,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const load = async () => {
-      // Ensure Supabase session is loaded from localStorage before querying
-      await supabase.auth.getSession();
-
       const { data: p, error } = await supabase
         .from('profiles').select('*').eq('id', id).single();
 
