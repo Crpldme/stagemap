@@ -67,12 +67,12 @@ function Btn({ children, onClick, v = 'primary', sz = 'md', disabled, full, styl
   return <button onClick={onClick} disabled={disabled} style={{ ...base, ...sizes, ...vars }}>{children}</button>;
 }
 
-/* ── Venue Picker ── */
-function VenuePicker({ value, onChange, venues, placeholder }) {
+/* ── Profile Search Picker (venue or artist) ── */
+function ProfilePicker({ value, onChange, profiles, defaultAvatar, placeholder }) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
 
-  const filtered = venues.filter(v =>
+  const filtered = profiles.filter(v =>
     (v.name + (v.region || '')).toLowerCase().includes((query || '').toLowerCase())
   ).slice(0, 8);
 
@@ -83,17 +83,11 @@ function VenuePicker({ value, onChange, venues, placeholder }) {
     setOpen(false);
   };
 
-  const handleChange = (val) => {
-    setQuery(val);
-    onChange(val);
-    setOpen(true);
-  };
-
   return (
     <div style={{ position: 'relative' }}>
       <input
         value={query}
-        onChange={e => handleChange(e.target.value)}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder={placeholder}
@@ -106,7 +100,7 @@ function VenuePicker({ value, onChange, venues, placeholder }) {
               style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
               onMouseEnter={e => e.currentTarget.style.background = C.card}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-              <span style={{ fontSize: 16 }}>{v.avatar || '🏛️'}</span>
+              <span style={{ fontSize: 16 }}>{v.avatar || defaultAvatar}</span>
               <div>
                 <div style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>{v.name}</div>
                 {v.region && <div style={{ fontSize: 10, color: C.muted }}>{v.region}</div>}
@@ -120,7 +114,7 @@ function VenuePicker({ value, onChange, venues, placeholder }) {
 }
 
 /* ── Event Form Modal ── */
-function EventFormModal({ date, event, myId, myProfile, venues = [], onSave, onDelete, onClose }) {
+function EventFormModal({ date, event, myId, myProfile, allProfiles = [], onSave, onDelete, onClose }) {
   const t = useT();
   const isEdit = !!event;
 
@@ -267,8 +261,17 @@ function EventFormModal({ date, event, myId, myProfile, venues = [], onSave, onD
             </div>
           </div>
           <div style={{ position: 'relative' }}>
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.location')}</div>
-            <VenuePicker value={form.location} onChange={v => set('location', v)} venues={venues} placeholder={t('evf.ph_location')} />
+            {myProfile?.type === 'venue' ? (
+              <>
+                <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.location_artist')}</div>
+                <ProfilePicker value={form.location} onChange={v => set('location', v)} profiles={allProfiles.filter(p => p.type === 'artist')} defaultAvatar='🎵' placeholder={t('evf.ph_artist')} />
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.location')}</div>
+                <ProfilePicker value={form.location} onChange={v => set('location', v)} profiles={allProfiles.filter(p => p.type === 'venue')} defaultAvatar='🏛️' placeholder={t('evf.ph_location')} />
+              </>
+            )}
           </div>
           <div>
             <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>{t('evf.desc')}</div>
@@ -895,7 +898,7 @@ export function CalendarView({ myId, profiles = [], onInvite, myProfile }) {
           event={editEvent}
           myId={myId}
           myProfile={myProfile}
-          venues={profiles.filter(p => p.type === 'venue')}
+          allProfiles={profiles}
           onSave={(entry) => {
             setFormDate(null); setEditEvent(null); loadEntries();
             if (entry?.visibility === 'public') setShareEvent(entry);
