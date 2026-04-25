@@ -157,7 +157,7 @@ function ProfileSwitcher({ profile, userProfiles, onSwitch, onAdd, onLogout }) {
 }
 
 /* ── Map View (Mapbox) ── */
-function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
+function MapView({ artists, myProfile, onOpen, onOpenEvent, events = [], allEvents = [] }) {
   const navigate = useNavigate();
   const [popup, setPopup] = useState(null);
   const [hov, setHov] = useState(null);
@@ -237,7 +237,7 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
                 <div style={{ color:C.muted, fontSize:11, marginBottom:2 }}>{new Date(popup.date_start).toLocaleDateString('fr',{day:'numeric',month:'long',year:'numeric'})}</div>
                 <div style={{ color:C.dim, fontSize:11, marginBottom:8 }}>{t('ev.by')} {popup.profile.name} · {popup.profile.region}</div>
                 <div style={{ display:'flex', gap:6 }}>
-                  <button onClick={()=>{ navigate('/profile/'+popup.profile.id+'?event='+popup.id); setPopup(null); }} style={{ flex:1, background:'linear-gradient(135deg,'+C.purple+',#8030cc)', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{t('modal.see_event')}</button>
+                  <button onClick={()=>{ onOpenEvent(popup); setPopup(null); }} style={{ flex:1, background:'linear-gradient(135deg,'+C.purple+',#8030cc)', border:'none', borderRadius:6, color:'#fff', fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{t('modal.see_event')}</button>
                   <button onClick={()=>{ onOpen(popup.profile); setPopup(null); }} style={{ flex:1, background:C.tag, border:'1px solid '+C.purple+'55', borderRadius:6, color:C.purple, fontSize:11, fontWeight:600, padding:'5px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{t('modal.see')}</button>
                 </div>
               </div>
@@ -259,7 +259,7 @@ function MapView({ artists, myProfile, onOpen, events = [], allEvents = [] }) {
                   <div style={{ marginBottom:8 }}>
                     <div style={{ fontSize:9, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>{t('map.upcoming_events')}</div>
                     {allEvents.filter(ev=>ev.user_id===popup.id).slice(0,8).map(ev=>(
-                      <div key={ev.id} onClick={()=>{ navigate('/profile/'+popup.id+'?event='+ev.id); setPopup(null); }}
+                      <div key={ev.id} onClick={()=>{ onOpenEvent({...ev, profile: popup}); setPopup(null); }}
                         style={{ background:C.purple+'11', border:'1px solid '+C.purple+'33', borderRadius:5, padding:'3px 8px', fontSize:10, color:C.purple, marginBottom:3, display:'flex', justifyContent:'space-between', gap:6, cursor:'pointer' }}
                         onMouseEnter={e=>e.currentTarget.style.background=C.purple+'22'}
                         onMouseLeave={e=>e.currentTarget.style.background=C.purple+'11'}>
@@ -333,6 +333,38 @@ function MapViewFallback({ artists, myProfile, onOpen }) {
       <div style={{display:'flex',gap:14,marginTop:8,justifyContent:'center'}}>
         {Object.entries(typeColors).map(([type,c])=><span key={type} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.muted}}><span style={{width:8,height:8,borderRadius:'50%',background:c,display:'inline-block'}}/>{tl[type]}</span>)}
         <span style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.muted}}><span style={{width:8,height:8,borderRadius:'50%',background:C.glow,display:'inline-block'}}/>{t('map.you')}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Event Detail Modal (dashboard-internal) ── */
+function EventModal({ ev, onClose }) {
+  const t = useT();
+  const p = ev.profile;
+  const dateStr = new Date(ev.date_start).toLocaleDateString(t('cal.locale'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = ev.time_start ? `${ev.time_start}${ev.time_end ? ' – ' + ev.time_end : ''}` : null;
+  return (
+    <div style={{ position:'fixed', inset:0, background:'#00000090', zIndex:1500, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:C.bg2, border:'1px solid '+C.purple+'66', borderRadius:16, maxWidth:440, width:'100%', padding:26, boxShadow:'0 40px 100px #00000090', fontFamily:"'Outfit',sans-serif" }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+          <span style={{ background:C.purple+'22', color:C.purple, border:'1px solid '+C.purple+'44', borderRadius:20, padding:'2px 10px', fontSize:10, fontWeight:600 }}>{t('modal.public_event')}</span>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:C.dim, cursor:'pointer', fontSize:18 }}>×</button>
+        </div>
+        <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:C.cream, marginBottom:14, lineHeight:1.2 }}>{ev.title}</h2>
+        <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:13, color:C.text }}>
+            <span>📅</span><span>{dateStr}</span>
+          </div>
+          {timeStr && <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:13, color:C.muted }}><span>🕐</span><span>{timeStr}</span></div>}
+          {ev.location && <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:13, color:C.muted }}><span>📍</span><span>{ev.location}</span></div>}
+          {p && <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:13, color:C.muted }}><span>{p.avatar||'🎵'}</span><span>{p.name}{p.region ? ' · ' + p.region : ''}</span></div>}
+        </div>
+        {ev.description && <p style={{ fontSize:13, color:C.muted, lineHeight:1.6, marginBottom:16 }}>{ev.description}</p>}
+        <div style={{ display:'flex', gap:8 }}>
+          {p && <button onClick={()=>window.open('/profile/'+p.id,'_blank')} style={{ flex:1, background:'linear-gradient(135deg,'+C.purple+',#8030cc)', border:'none', borderRadius:8, color:'#fff', fontSize:12, fontWeight:600, padding:'9px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{t('modal.public')} →</button>}
+          <button onClick={onClose} style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:8, color:C.muted, fontSize:12, padding:'9px 16px', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{t('btn.close')}</button>
+        </div>
       </div>
     </div>
   );
@@ -1035,6 +1067,7 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [profileModal, setProfileModal] = useState(null);
+  const [eventModal, setEventModal] = useState(null);
   const [chatPartner, setChatPartner] = useState(null);
   const [inviteTarget, setInviteTarget] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -1173,7 +1206,7 @@ export default function Dashboard() {
       )}
 
       <main style={{padding:'20px',maxWidth:1100,margin:'0 auto'}}>
-        {tab==='map'&&<MapView artists={filter==='events'?[]:filtered} myProfile={profile} onOpen={setProfileModal} events={filter==='events'?publicEvents:[]} allEvents={publicEvents}/>}
+        {tab==='map'&&<MapView artists={filter==='events'?[]:filtered} myProfile={profile} onOpen={setProfileModal} onOpenEvent={setEventModal} events={filter==='events'?publicEvents:[]} allEvents={publicEvents}/>}
         {tab==='list'&&filter!=='events'&&(
           <div className='fade-in' style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
             {loadingProfiles&&profiles.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
@@ -1189,7 +1222,7 @@ export default function Dashboard() {
                 const p=ev.profile;
                 const ec=ev.event_type==='booking'?C.amber:ev.event_type==='event'?C.orange:C.muted;
                 return (
-                  <div key={ev.id} onClick={()=>navigate('/profile/'+ev.user_id+'?event='+ev.id)}
+                  <div key={ev.id} onClick={()=>setEventModal(ev)}
                     style={{background:C.card,border:'1px solid '+C.purple+'44',borderLeft:'3px solid '+C.purple,borderRadius:9,padding:'12px 14px',cursor:'pointer',transition:'all .15s'}}
                     onMouseEnter={e=>e.currentTarget.style.background=C.cardHov}
                     onMouseLeave={e=>e.currentTarget.style.background=C.card}>
@@ -1235,6 +1268,7 @@ export default function Dashboard() {
       </footer>
 
       {profileModal&&<ProfileModal a={profileModal} myId={profile?.id} onClose={()=>setProfileModal(null)} onChat={openChat} onInvite={openInvite}/>}
+      {eventModal&&<EventModal ev={eventModal} onClose={()=>setEventModal(null)}/>}
       {chatPartner&&profile&&<ChatPanel myProfile={profile} partner={chatPartner} onClose={()=>setChatPartner(null)}/>}
       {inviteTarget&&profile&&(
         <InviteModal organizer={profile} invitee={inviteTarget} profiles={profiles} onClose={()=>setInviteTarget(null)} onSent={()=>{setInviteTarget(null);getMessages(user.id).then(setMessages);}}/>
