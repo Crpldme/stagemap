@@ -15,6 +15,7 @@ import { startSubscription, payForCampaign, checkSubscription, PRICES } from '..
 import Map, { Marker, Popup, NavigationControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { CalendarView } from '../components/CalendarView';
+import FeaturedCarousel from '../components/FeaturedCarousel';
 import { useT } from '../lib/i18n';
 
 /* ── Design Tokens ── */
@@ -395,13 +396,23 @@ function ProfileModal({ a, myId, onClose, onChat, onInvite }) {
         {a.fee&&<div style={{color:C.amber,fontSize:12,marginBottom:8}}>💰 {a.fee}</div>}
         {a.rating>0&&<div style={{marginBottom:10}}><Stars r={a.rating}/> <span style={{color:C.dim,fontSize:11}}>({a.rating_count} avis)</span></div>}
         {a.links&&a.links?.length>0&&<div style={{marginBottom:14}}>{a.links.map((l,i)=><a key={i} href={'https://'+l} target='_blank' rel='noreferrer' style={{display:'inline-block',marginRight:4,marginBottom:4,background:C.tag,border:'1px solid '+C.border,color:C.orangeLt,borderRadius:5,padding:'2px 7px',fontSize:11,textDecoration:'none'}}>🔗 {l}</a>)}</div>}
+        {/* Artist tier badge */}
+        {a.artist_tier && a.artist_tier !== 'amateur' && (
+          <div style={{marginBottom:10}}>
+            <span style={{background:(a.artist_tier==='all_stars'?C.purple:C.orange)+'22',border:'1px solid '+(a.artist_tier==='all_stars'?C.purple:C.orange)+'44',color:a.artist_tier==='all_stars'?C.purple:C.orange,borderRadius:20,padding:'2px 10px',fontSize:10,fontWeight:700}}>
+              {a.artist_tier==='all_stars'?'⭐ All Stars':'🎵 Local Legends'}
+            </span>
+          </div>
+        )}
         {!isMe&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           <Btn onClick={()=>{onChat(a);onClose();}}>💬 {t('modal.chat').replace('💬 ','')}</Btn>
           <Btn v="secondary" onClick={()=>{onInvite(a);onClose();}}>{t('modal.invite')}</Btn>
+          {a.type==='artist'&&<Btn v="purple" onClick={()=>{ window.open('/artist/'+a.id,'_blank'); }}>🎵 Page Artiste</Btn>}
           <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }}>{t('modal.public')}</Btn>
           <Btn v="ghost" onClick={onClose}>✕</Btn>
         </div>}
-        {isMe&&<div style={{display:'flex',gap:8}}>
+        {isMe&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {a.type==='artist'&&<Btn v="purple" onClick={()=>{ window.open('/artist/'+a.id,'_blank'); }}>🎵 Ma Page Artiste</Btn>}
           <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }} full>{t('modal.my_public')}</Btn>
           <Btn v="ghost" onClick={onClose}>{t('btn.close')}</Btn>
         </div>}
@@ -1013,6 +1024,39 @@ function MyProfileTab({ profile, userProfiles, setProfile, user, onLogout, onAdd
 
       <Btn v='secondary' onClick={onAddProfile} full>{t('btn.add_profile')}</Btn>
 
+      {/* ── Artist tier picker (artists only) ── */}
+      {profile.type === 'artist' && (
+        <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:16, padding:24 }}>
+          <div style={{ fontSize:10, color:C.dim, letterSpacing:1.5, textTransform:'uppercase', marginBottom:4 }}>Niveau artiste</div>
+          <div style={{ fontSize:12, color:C.muted, marginBottom:16, lineHeight:1.6 }}>Choisissez votre niveau pour définir l'accès de vos fans à votre profil.</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {[
+              { k:'all_stars', color:C.purple, price:'29$ / mois', label:'⭐ All Stars — Professionnel', desc:'Profil complet · Booking · Agenda · Chat · Répertoire' },
+              { k:'local_legends', color:C.orange, price:'15$ / mois', label:'🎵 Local Legends — Semi-pro', desc:'Profil complet · Agenda partagé · Chat · Répertoire' },
+              { k:'amateur', color:C.muted, price:'Gratuit', label:'🎶 Amateur', desc:'Répertoire public uniquement' },
+            ].map(tier => {
+              const isActive = (p.artist_tier || 'amateur') === tier.k;
+              return (
+                <div key={tier.k} onClick={() => set('artist_tier', tier.k)}
+                  style={{ display:'flex', alignItems:'center', gap:12, padding:14, background:isActive?tier.color+'18':C.tag, border:'1px solid '+(isActive?tier.color:C.border), borderRadius:10, cursor:'pointer', transition:'all .15s' }}>
+                  <div style={{ width:18, height:18, borderRadius:'50%', border:'2px solid '+(isActive?tier.color:C.dim), background:isActive?tier.color:'none', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {isActive && <div style={{ width:6, height:6, borderRadius:'50%', background:'#fff' }}/>}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:isActive?tier.color:C.text }}>{tier.label}</div>
+                    <div style={{ fontSize:11, color:C.dim, marginTop:2 }}>{tier.desc}</div>
+                  </div>
+                  <div style={{ fontSize:12, fontWeight:600, color:isActive?tier.color:C.muted, flexShrink:0 }}>{tier.price}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop:12, fontSize:11, color:C.dim, lineHeight:1.6, background:C.tag, borderRadius:8, padding:'7px 11px' }}>
+            Sauvegardez votre profil après avoir changé de niveau. Les fans existants conservent leur accès jusqu'à expiration.
+          </div>
+        </div>
+      )}
+
       {!isSubscribed && (
         <div style={{ background:C.card, border:'1px solid '+C.border, borderRadius:12, padding:18 }}>
           <div style={{ fontWeight:700, color:C.orange, marginBottom:6, fontSize:14 }}>{t('me.subscribe')}</div>
@@ -1075,6 +1119,13 @@ export default function Dashboard() {
   const [loadingProfiles, setLoadingProfiles] = useState(true);
   const [showUpgrade, setShowUpgrade] = useState(null);
   const [publicEvents, setPublicEvents] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
 
   const isSubscribed = true; // TODO: restore checkSubscription(profile) before production
   const isFan = profile?.type === 'fan';
@@ -1161,7 +1212,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <nav style={{display:'flex',gap:1,marginLeft:12,flex:1,overflowX:'auto'}}>
+        <nav style={{display:isMobile?'none':'flex',gap:1,marginLeft:12,flex:1,overflowX:'auto'}}>
           {TABS.map(n=>(
             <button key={n.k} onClick={()=>{ if(n.locked) setShowUpgrade(n.locked); else setTab(n.k); }}
               style={{position:'relative',background:tab===n.k?C.orange+'20':'none',border:'1px solid '+(tab===n.k?C.orange+'66':'transparent'),color:n.locked?C.dim:tab===n.k?C.orangeLt:C.muted,borderRadius:7,padding:'4px 11px',cursor:'pointer',fontSize:11,fontWeight:tab===n.k?600:400,fontFamily:"'Outfit',sans-serif",transition:'all .15s',whiteSpace:'nowrap',opacity:n.locked?.6:1}}>
@@ -1205,8 +1256,16 @@ export default function Dashboard() {
         </div>
       )}
 
-      <main style={{padding:'20px',maxWidth:1100,margin:'0 auto'}}>
+      <main style={{padding: isMobile ? '14px' : '20px', maxWidth:1100, margin:'0 auto', paddingBottom: isMobile ? 88 : 20}}>
         {tab==='map'&&<MapView artists={filter==='events'?[]:filtered} myProfile={profile} onOpen={setProfileModal} onOpenEvent={setEventModal} events={filter==='events'?publicEvents:[]} allEvents={publicEvents}/>}
+        {tab==='list'&&filter!=='events'&&(
+          <FeaturedCarousel
+            profiles={profiles.filter(p=>p.subscribed)}
+            events={publicEvents}
+            onOpenProfile={setProfileModal}
+            onOpenEvent={setEventModal}
+          />
+        )}
         {tab==='list'&&filter!=='events'&&(
           <div className='fade-in' style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
             {loadingProfiles&&profiles.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'40px 0',display:'flex',justifyContent:'center'}}><Spinner/></div>}
@@ -1266,6 +1325,41 @@ export default function Dashboard() {
         <span>{t('footer.copy')}</span>
         <span>{t('footer.count', {n: profiles?.length})}</span>
       </footer>
+
+      {/* ── Mobile bottom nav ── */}
+      {isMobile && (
+        <div style={{ position:'fixed', bottom:0, left:0, right:0, height:64, background:'#1e1100', borderTop:'1px solid #3d2200', display:'flex', alignItems:'center', zIndex:600, boxShadow:'0 -4px 24px #00000080' }}>
+          {[
+            { k:'map',   i:'🗺️', l:'Carte' },
+            { k:'list',  i:'📋', l:'Annuaire' },
+            null,
+            { k:'inbox', i:'💬', l:'Messages', badge: unread },
+            { k:'me',    i:'👤', l:'Profil' },
+          ].map((item, idx) => {
+            if (!item) return (
+              <div key='fab' style={{ flex:1, display:'flex', justifyContent:'center' }}>
+                <button
+                  onClick={() => setTab('ai')}
+                  style={{ width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#d95f00,#f07020)', border:'3px solid #1e1100', boxShadow:'0 0 20px #d95f0055', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, cursor:'pointer', marginBottom:16, flexShrink:0 }}>
+                  🤖
+                </button>
+              </div>
+            );
+            const active = tab === item.k;
+            return (
+              <button key={item.k} onClick={() => setTab(item.k)}
+                style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, background:'none', border:'none', cursor:'pointer', position:'relative', paddingTop:4 }}>
+                {item.badge > 0 && (
+                  <div style={{ position:'absolute', top:2, right:'calc(50% - 14px)', background:'#ff5040', color:'#fff', borderRadius:'50%', width:14, height:14, fontSize:8, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>{item.badge}</div>
+                )}
+                <span style={{ fontSize:18 }}>{item.i}</span>
+                <span style={{ fontSize:9, color:active?'#f07020':'#5a3810', fontFamily:"'Outfit',sans-serif", fontWeight:active?700:400, letterSpacing:.3 }}>{item.l}</span>
+                {active && <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', width:24, height:2, background:'#d95f00', borderRadius:1 }} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {profileModal&&<ProfileModal a={profileModal} myId={profile?.id} onClose={()=>setProfileModal(null)} onChat={openChat} onInvite={openInvite}/>}
       {eventModal&&<EventModal ev={eventModal} onClose={()=>setEventModal(null)}/>}

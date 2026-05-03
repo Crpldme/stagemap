@@ -9,6 +9,7 @@ import AuthPage    from './pages/AuthPage';
 import OnboardPage from './pages/OnboardPage';
 import Dashboard   from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
+import ArtistPage  from './pages/ArtistPage';
 
 const GF = `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');`;
 
@@ -96,6 +97,7 @@ const loadUserProfiles = async (user) => {
             <RequireAuth><Dashboard /></RequireAuth>
           } />
           <Route path="/profile/:id" element={<ProfilePage />} />
+          <Route path="/artist/:id" element={<ArtistPage />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

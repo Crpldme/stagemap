@@ -13,13 +13,31 @@ const C = {
   red:"#ff5040", green:"#3ed870",
 };
 
+const DEMO_EMAIL    = 'demo@stagemap.com';
+const DEMO_PASSWORD = 'Demo2026!';
+
 export default function AuthPage() {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const navigate = useNavigate();
   const { setSession, setUser, lang, setLang } = useStore();
   const t = useT();
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+      if (error) {
+        const { error: signUpErr } = await supabase.auth.signUp({ email: DEMO_EMAIL, password: DEMO_PASSWORD, options: { data: { name: 'Démo StageMap' } } });
+        if (signUpErr) { toast.error('Erreur démo : ' + signUpErr.message); setDemoLoading(false); return; }
+        await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+      }
+      navigate('/dashboard');
+    } catch(e) { toast.error(e.message || 'Erreur'); }
+    setDemoLoading(false);
+  };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -89,6 +107,18 @@ export default function AuthPage() {
         </div>
 
         <div style={{ background: C.card, border: '1px solid '+C.border, borderRadius: 16, padding: 32, boxShadow: '0 32px 80px #00000080, 0 0 60px '+C.orange+'11' }}>
+
+          {/* DEMO BUTTON */}
+          <button onClick={handleDemo} disabled={demoLoading}
+            style={{ width:'100%', marginBottom:20, background: C.amber+'18', border:'1px solid '+C.amber+'44', color: C.amber, borderRadius:10, padding:'11px 0', fontWeight:700, cursor:demoLoading?'not-allowed':'pointer', fontSize:14, fontFamily:"'Outfit',sans-serif", transition:'all .2s', opacity:demoLoading?.6:1 }}>
+            {demoLoading ? '⏳ Connexion...' : '⚡ Essayer la démo — accès instantané'}
+          </button>
+
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
+            <div style={{ flex:1, height:1, background:C.border }} />
+            <span style={{ fontSize:11, color:C.dim }}>ou se connecter</span>
+            <div style={{ flex:1, height:1, background:C.border }} />
+          </div>
 
           {mode !== 'reset' && (
             <div style={{ display: 'flex', gap: 0, marginBottom: 28, background: C.tag, borderRadius: 10, padding: 4 }}>

@@ -292,6 +292,79 @@ export const addCalendarEntry = async (entry) => {
   return data;
 };
 
+// ── Artist tier helpers ──────────────────────────────────────
+
+export const getFanSubscription = async (fanId, artistId) => {
+  const { data, error } = await supabase
+    .from('fan_artist_subscriptions')
+    .select('*')
+    .eq('fan_id', fanId)
+    .eq('artist_id', artistId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+export const subscribeToArtist = async (fanId, artistId, plan = 'monthly') => {
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + (plan === 'annual' ? 12 : 1));
+  const { data, error } = await supabase
+    .from('fan_artist_subscriptions')
+    .upsert({ fan_id: fanId, artist_id: artistId, plan, status: 'active', expires_at: expiresAt.toISOString() }, { onConflict: 'fan_id,artist_id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const unsubscribeFromArtist = async (fanId, artistId) => {
+  const { error } = await supabase
+    .from('fan_artist_subscriptions')
+    .update({ status: 'cancelled' })
+    .eq('fan_id', fanId)
+    .eq('artist_id', artistId);
+  if (error) throw error;
+};
+
+export const getRepertoryItems = async (artistId) => {
+  const { data, error } = await supabase
+    .from('repertory_items')
+    .select('*')
+    .eq('artist_id', artistId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+export const addRepertoryItem = async (item) => {
+  const { data, error } = await supabase
+    .from('repertory_items')
+    .insert(item)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteRepertoryItem = async (itemId) => {
+  const { error } = await supabase
+    .from('repertory_items')
+    .delete()
+    .eq('id', itemId);
+  if (error) throw error;
+};
+
+export const getArtistProfile = async (profileId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', profileId)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
 export const getPublicEvents = async () => {
   const { data: events, error } = await supabase
     .from('calendar_entries')
