@@ -452,6 +452,7 @@ export default function ArtistPage() {
   const { profile: myProfile } = useStore();
   const [artist, setArtist] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [tab, setTab] = useState('repertoire');
   const [subscription, setSubscription] = useState(null);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
@@ -469,7 +470,7 @@ export default function ArtistPage() {
   useEffect(() => {
     getArtistProfile(id)
       .then(data => { setArtist(data); setLoading(false); })
-      .catch(() => { toast.error('Artiste introuvable'); navigate(-1); });
+      .catch(() => { setNotFound(true); setLoading(false); });
   }, [id]);
 
   useEffect(() => {
@@ -496,7 +497,13 @@ export default function ArtistPage() {
     </div>
   );
 
-  if (!artist) return null;
+  if (notFound || !artist) return (
+    <div style={{ minHeight:'100vh', background:C.bg, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, color:C.muted }}>
+      <div style={{ fontSize:48 }}>🎭</div>
+      <div style={{ fontSize:16, color:C.text }}>Artiste introuvable</div>
+      <button onClick={() => navigate('/')} style={{ background:'none', border:'1px solid '+C.border, color:C.muted, borderRadius:8, padding:'6px 16px', cursor:'pointer', fontSize:12, fontFamily:"'Outfit',sans-serif" }}>← Retour</button>
+    </div>
+  );
 
   const TABS = [
     { k:'repertoire', l:'Répertoire', icon:'🎼' },

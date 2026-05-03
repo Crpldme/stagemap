@@ -158,10 +158,11 @@ export default function FeaturedCarousel({ profiles = [], events = [], onOpenPro
 function EventCard({ event: ev, onOpen }) {
   const b = BOOST[ev.boost];
   const p = ev.profile || {};
+  const isMock = ev.id?.startsWith('me');
 
   return (
     <div
-      onClick={() => onOpen && onOpen(ev)}
+      onClick={() => !isMock && onOpen && onOpen(ev)}
       style={{ width:CARD_W, flexShrink:0, scrollSnapAlign:'start', background:C.card,
         border:'1px solid '+(b ? b.border : C.border), borderRadius:14, overflow:'hidden',
         cursor:'pointer', transition:'transform .2s, box-shadow .2s',
@@ -222,9 +223,10 @@ function EventCard({ event: ev, onOpen }) {
 }
 
 function ArtistCard({ profile: p, onOpen }) {
+  const isMock = p.id?.startsWith('mp');
   return (
     <div
-      onClick={() => onOpen && onOpen(p)}
+      onClick={() => !isMock && onOpen && onOpen(p)}
       style={{ width:CARD_W, flexShrink:0, scrollSnapAlign:'start', background:C.card,
         border:'1px solid '+C.orange+'44', borderRadius:14, overflow:'hidden',
         cursor:'pointer', transition:'transform .2s',
