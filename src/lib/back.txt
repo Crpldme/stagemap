@@ -1,0 +1,21 @@
+
+❯ when a event is on  booking state or pivate ,it should show
+   as' booking annoncement coming up' for title to the
+  public. only after publishing  public, you can read the
+  title and show the event flyer the we will create
+
+● Let me read the current SharedCalendarView day-cell
+  rendering to make the targeted changes.
+
+  Read 1 file (ctrl+o to expand)
+  ⎿  You've hit your limit · resets 5am (America/Toronto)
+     /upgrade to increase your usage limit.
+
+✻ Crunched for 1m 36s · 1 shell still running
+
+❯ next we have organise public wich is basicly fan mode. also
+   evrything about payment plans, who  have access to what
+  area of the site. Artist and location users should be abble
+   to view  the map  with a drop down menu option to views
+  users by types and future event. we have to decide payment
+  plans

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(node -e \"const path=require\\('path'\\); console.log\\('checking build...'\\)\")",
+      "Bash(npx react-scripts *)",
+      "Bash(npm start *)",
+      "Bash(npm run *)",
+      "Bash(taskkill /F /IM node.exe)",
+      "PowerShell(Stop-Process *)",
+      "WebFetch(domain:stagemap.vercel.app)",
+      "Bash(gh run *)",
+      "Bash(node -e \"const fs=require\\('fs'\\); try{require\\('@babel/parser'\\).parse\\(fs.readFileSync\\('src/pages/ArtistPage.jsx','utf8'\\),{sourceType:'module',plugins:['jsx']}\\); console.log\\('OK'\\)} catch\\(e\\){console.log\\('SYNTAX ERROR:',e.message\\)}\")",
+      "Bash(node -e \"const fs=require\\('fs'\\); const src=fs.readFileSync\\('src/pages/ArtistPage.jsx','utf8'\\); const lines=src.split\\('\\\\n'\\); for\\(let i=0;i<lines.length;i++\\){if\\(lines[i].includes\\('featureName'\\)\\){ console.log\\(i+1+':',lines[i].trim\\(\\)\\);}}\")",
+      "mcp__plugin_supabase_supabase__list_projects",
+      "mcp__plugin_supabase_supabase__get_advisors",
+      "mcp__plugin_supabase_supabase__execute_sql"
+    ]
+  }
+}
