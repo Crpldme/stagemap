@@ -18,7 +18,10 @@
       "mcp__plugin_supabase_supabase__list_projects",
       "mcp__plugin_supabase_supabase__get_advisors",
       "mcp__plugin_supabase_supabase__execute_sql",
-      "mcp__plugin_supabase_supabase__get_logs"
+      "mcp__plugin_supabase_supabase__get_logs",
+      "Bash(curl -s -X POST \"https://jgbzkrjqgwppgsvzksic.supabase.co/auth/v1/token?grant_type=password\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYnprcmpxZ3dwcGdzdnprc2ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyODA1ODksImV4cCI6MjA5MTg1NjU4OX0.9asxKtF5HEtFTXFAi5f0QFRvs7yxFMMcHj9JduKDIkY\" -H \"Content-Type: application/json\" -d \"{\\\\\"email\\\\\":\\\\\"artist@test.stagemap.com\\\\\",\\\\\"password\\\\\":\\\\\"Test2026!\\\\\"}\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('LOGIN OK - user:', d.get\\('user',{}\\).get\\('email','?'\\)\\) if 'access_token' in d else print\\('FAILED:', d.get\\('error_description', d.get\\('message','?'\\)\\)\\)\")",
+      "Bash(curl *)"
     ]
   }
 }
