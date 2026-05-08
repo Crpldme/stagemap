@@ -54,6 +54,8 @@ const loadUserProfiles = async (user) => {
         await loadUserProfiles(session.user);
       } else {
         clearAuth();
+        // Wipe persisted store so stale profile IDs don't survive account deletion
+        localStorage.removeItem('stagemap-store');
       }
     });
 
@@ -63,6 +65,10 @@ const loadUserProfiles = async (user) => {
         setSession(session);
         setUser(session.user);
         await loadUserProfiles(session.user);
+      } else {
+        // No session — clear any stale persisted state
+        clearAuth();
+        localStorage.removeItem('stagemap-store');
       }
     });
 
