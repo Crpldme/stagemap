@@ -9,7 +9,7 @@ import {
   getFanSubscription, subscribeToArtist, unsubscribeFromArtist,
   addRepertoryItem, deleteRepertoryItem,
   getChatMessages, sendChatMessage, subscribeToChatRoom, getRoomId,
-  getMyCalendar, createInvitation,
+  getMyCalendar, createInvitation, sendMessage,
 } from '../lib/supabase';
 
 const C = {
@@ -445,6 +445,64 @@ function GateScreen({ tier, featureName, onlyAllStars }) {
   );
 }
 
+/* ── Contact modal ── */
+function ContactModal({ target, myProfile, onClose }) {
+  const [subject, setSubject] = useState(`Message pour ${target.name}`);
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSend = async () => {
+    if (!body.trim()) { toast.error('Message requis'); return; }
+    setSending(true);
+    try {
+      await sendMessage(myProfile.id, target.id, subject, body);
+      setSent(true);
+      toast.success('Message envoyé !');
+      setTimeout(onClose, 1500);
+    } catch(e) { toast.error(e.message || 'Erreur'); setSending(false); }
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'#00000090', zIndex:3000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:C.bg2, border:'1px solid '+C.border, borderRadius:18, maxWidth:440, width:'100%', padding:28, boxShadow:'0 40px 100px #00000099' }}>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:C.cream, fontWeight:700, marginBottom:3 }}>Contacter {target.name}</div>
+        <div style={{ fontSize:12, color:C.dim, marginBottom:20 }}>Ce message apparaîtra dans sa boîte de réception StageMap</div>
+
+        {!myProfile ? (
+          <div style={{ textAlign:'center', padding:'20px 0' }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>✉️</div>
+            <div style={{ fontSize:13, color:C.muted, marginBottom:18, lineHeight:1.6 }}>Créez un compte pour envoyer un message à {target.name}</div>
+            <a href='/dashboard' style={{ display:'inline-block', background:'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', color:'#fff', borderRadius:10, padding:'11px 22px', fontSize:13, fontWeight:700, textDecoration:'none', fontFamily:"'Outfit',sans-serif" }}>Rejoindre StageMap →</a>
+          </div>
+        ) : sent ? (
+          <div style={{ textAlign:'center', padding:'20px 0', color:C.green, fontSize:15 }}>✓ Message envoyé !</div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <div>
+              <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>Sujet</div>
+              <input value={subject} onChange={e=>setSubject(e.target.value)}
+                style={{ width:'100%', background:C.tag, border:'1px solid '+C.border, borderRadius:8, padding:'8px 12px', color:C.text, fontFamily:"'Outfit',sans-serif", fontSize:13, outline:'none' }}/>
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:5 }}>Message</div>
+              <textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder={`Bonjour ${target.name}, ...`}
+                style={{ width:'100%', background:C.tag, border:'1px solid '+C.border, borderRadius:8, padding:'8px 12px', color:C.text, fontFamily:"'Outfit',sans-serif", fontSize:13, outline:'none', resize:'vertical' }}/>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={onClose} style={{ flex:1, background:C.tag, border:'1px solid '+C.border, color:C.muted, borderRadius:8, padding:'10px 0', cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontSize:13 }}>Annuler</button>
+              <button onClick={handleSend} disabled={sending}
+                style={{ flex:2, background:'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', border:'none', color:'#fff', borderRadius:8, padding:'10px 0', cursor:sending?'not-allowed':'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, opacity:sending?.7:1 }}>
+                {sending ? '⏳ Envoi...' : '✉️ Envoyer le message'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main ArtistPage ── */
 export default function ArtistPage() {
   const { id } = useParams();
@@ -456,6 +514,7 @@ export default function ArtistPage() {
   const [tab, setTab] = useState('repertoire');
   const [subscription, setSubscription] = useState(null);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [subLoading, setSubLoading] = useState(false);
 
   const isOwner = myProfile && artist && myProfile.id === artist.id;
@@ -554,11 +613,11 @@ export default function ArtistPage() {
               {artist.bio && <p style={{ fontSize:13, color:C.muted, marginTop:8, lineHeight:1.6, maxWidth:480 }}>{artist.bio}</p>}
             </div>
 
-            {/* Subscribe / manage */}
-            {!isOwner && tier !== 'amateur' && (
-              <div style={{ flexShrink:0 }}>
-                {hasSubscription ? (
-                  <div style={{ display:'flex', flexDirection:'column', gap:6, alignItems:'flex-end' }}>
+            {/* Subscribe / manage / contact */}
+            <div style={{ flexShrink:0, display:'flex', flexDirection:'column', gap:8, alignItems:'flex-end' }}>
+              {!isOwner && tier !== 'amateur' && (
+                hasSubscription ? (
+                  <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-end' }}>
                     <span style={{ background:C.green+'22', border:'1px solid '+C.green+'44', color:C.green, borderRadius:20, padding:'4px 12px', fontSize:11, fontWeight:600 }}>✓ Abonné</span>
                     <button onClick={handleUnsubscribe} disabled={subLoading} style={{ background:'none', border:'none', color:C.dim, cursor:'pointer', fontSize:11, fontFamily:"'Outfit',sans-serif" }}>
                       {subLoading ? '...' : 'Se désabonner'}
@@ -569,17 +628,20 @@ export default function ArtistPage() {
                     style={{ background:'linear-gradient(135deg,'+cfg.color+','+(tier==='all_stars'?'#8030cc':C.orangeLt)+')', border:'none', borderRadius:10, color:'#fff', fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:13, padding:'10px 18px', cursor:'pointer', boxShadow:'0 4px 20px '+cfg.glow }}>
                     S'abonner {cfg.monthlyPrice > 0 ? '— '+cfg.monthlyPrice+'$ / mois' : '— Gratuit'}
                   </button>
-                )}
-              </div>
-            )}
-
-            {isOwner && (
-              <div style={{ flexShrink:0 }}>
+                )
+              )}
+              {!isOwner && (
+                <button onClick={() => setShowContactModal(true)}
+                  style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:8, color:C.muted, fontSize:12, padding:'8px 14px', cursor:'pointer', fontFamily:"'Outfit',sans-serif", whiteSpace:'nowrap' }}>
+                  ✉️ Contacter
+                </button>
+              )}
+              {isOwner && (
                 <button onClick={() => navigate('/dashboard')} style={{ background:C.tag, border:'1px solid '+C.border, borderRadius:8, color:C.muted, fontSize:12, padding:'8px 14px', cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>
                   ⚙️ Gérer mon profil
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Tab bar */}
@@ -620,6 +682,15 @@ export default function ArtistPage() {
             setShowSubscribeModal(false);
             getFanSubscription(myProfile.id, artist.id).then(setSubscription);
           }}
+        />
+      )}
+
+      {/* Contact modal */}
+      {showContactModal && (
+        <ContactModal
+          target={artist}
+          myProfile={myProfile}
+          onClose={() => setShowContactModal(false)}
         />
       )}
     </div>

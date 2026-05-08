@@ -1,7 +1,7 @@
 // src/pages/ProfilePage.jsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, sendMessage } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { useT } from '../lib/i18n';
 import { useStore } from '../lib/store';
@@ -86,7 +86,7 @@ export default function ProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { lang, setLang } = useStore();
+  const { lang, setLang, profile: myProfile } = useStore();
   const t = useT();
   const [profile, setProfile] = useState(null);
   const [events, setEvents] = useState([]);
@@ -94,6 +94,11 @@ export default function ProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [selectedEv, setSelectedEv] = useState(null);
   const [copiedAnnonce, setCopiedAnnonce] = useState(false);
+  const [showContact, setShowContact] = useState(false);
+  const [contactSubject, setContactSubject] = useState('');
+  const [contactBody, setContactBody] = useState('');
+  const [contactSending, setContactSending] = useState(false);
+  const [contactSent, setContactSent] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -132,6 +137,17 @@ export default function ProfilePage() {
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success('Lien copié !');
+  };
+
+  const handleContact = async () => {
+    if (!contactBody.trim()) { toast.error('Message requis'); return; }
+    setContactSending(true);
+    try {
+      await sendMessage(myProfile.id, profile.id, contactSubject || `Message de ${myProfile.name}`, contactBody);
+      setContactSent(true);
+      toast.success('Message envoyé !');
+    } catch(e) { toast.error(e.message || 'Erreur'); }
+    setContactSending(false);
   };
 
   if (loading) return (
@@ -190,13 +206,29 @@ export default function ProfilePage() {
           </div>
           <div style={{ flex: 1 }}>
             <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 700, color: C.cream, lineHeight: 1.1, marginBottom: 6 }}>{profile.name}</h1>
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 6 }}>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
               <span style={{ background: tc+'22', color: tc, border: '1px solid '+tc+'44', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>{typeLabels[profile.type]}</span>
+              {profile.venue_type && <span style={{ background: C.card, color: C.muted, border: '1px solid '+C.border, borderRadius: 20, padding: '2px 10px', fontSize: 11 }}>{profile.venue_type}</span>}
               {show('show_available') && profile.available && <span style={{ color: C.green, fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, display: 'inline-block' }} />{t('status.available')}</span>}
               {profile.verified && <span style={{ color: C.blue, fontSize: 11 }}>{t('status.verified')}</span>}
             </div>
-            {show('show_genre') && <div style={{ color: C.muted, fontSize: 12, marginBottom: 2 }}>{profile.genre}</div>}
-            {show('show_region') && <div style={{ color: C.dim, fontSize: 11 }}>📍 {profile.region}{profile.country ? ', ' + profile.country : ''}</div>}
+            {show('show_genre') && profile.genre && <div style={{ color: C.muted, fontSize: 12, marginBottom: 2 }}>{profile.genre}</div>}
+            {show('show_region') && (profile.region || profile.country) && <div style={{ color: C.dim, fontSize: 11, marginBottom: 4 }}>📍 {profile.region}{profile.country ? ', ' + profile.country : ''}</div>}
+            {profile.rating > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                <div style={{ display: 'flex', gap: 2 }}>
+                  {[1,2,3,4,5].map(s => (
+                    <span key={s} style={{ fontSize: 11, color: s <= Math.round(profile.rating) ? C.amber : C.dim }}>★</span>
+                  ))}
+                </div>
+                <span style={{ fontSize: 11, color: C.dim }}>({profile.rating_count})</span>
+              </div>
+            )}
+            {profile.type === 'artist' && (
+              <a href={`/artist/${profile.id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, color: C.orange, textDecoration: 'none', border: '1px solid '+C.orange+'44', background: C.orange+'11', borderRadius: 20, padding: '2px 10px' }}>
+                🎼 Page artiste →
+              </a>
+            )}
           </div>
         </div>
 
@@ -365,6 +397,65 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Contact / Booking section */}
+        {myProfile && myProfile.id !== profile.id ? (
+          <div style={{ background: C.card, border: '1px solid '+C.border, borderRadius: 14, padding: 22, marginBottom: 28 }}>
+            {!showContact ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: C.cream, fontWeight: 700 }}>
+                    {profile.type === 'venue' ? 'Réserver ce lieu' : `Contacter ${profile.name}`}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.dim, marginTop: 2 }}>
+                    {profile.type === 'venue' ? 'Envoyez une demande de booking directement' : 'Envoyez un message dans sa boîte StageMap'}
+                  </div>
+                </div>
+                <button onClick={() => { setShowContact(true); setContactSubject(profile.type === 'venue' ? `Demande de booking — ${myProfile.name}` : `Message de ${myProfile.name}`); }}
+                  style={{ background: 'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', border: 'none', borderRadius: 9, color: '#fff', fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: 13, padding: '10px 20px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {profile.type === 'venue' ? '📋 Demander une réservation' : '✉️ Envoyer un message'}
+                </button>
+              </div>
+            ) : contactSent ? (
+              <div style={{ textAlign: 'center', padding: '12px 0', color: C.green, fontSize: 14 }}>✓ Message envoyé à {profile.name} !</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: C.cream, fontWeight: 700, marginBottom: 2 }}>
+                  {profile.type === 'venue' ? 'Demande de réservation' : 'Envoyer un message'}
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Sujet</div>
+                  <input value={contactSubject} onChange={e => setContactSubject(e.target.value)}
+                    style={{ width: '100%', background: '#1a0d00', border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit', sans-serif", fontSize: 13, outline: 'none' }}/>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: C.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>Message</div>
+                  <textarea value={contactBody} onChange={e => setContactBody(e.target.value)} rows={4} placeholder={`Bonjour ${profile.name}, ...`}
+                    style={{ width: '100%', background: '#1a0d00', border: '1px solid '+C.border, borderRadius: 8, padding: '8px 12px', color: C.text, fontFamily: "'Outfit', sans-serif", fontSize: 13, outline: 'none', resize: 'vertical' }}/>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setShowContact(false)} style={{ flex: 1, background: 'none', border: '1px solid '+C.border, color: C.muted, borderRadius: 8, padding: '9px 0', cursor: 'pointer', fontFamily: "'Outfit', sans-serif", fontSize: 13 }}>Annuler</button>
+                  <button onClick={handleContact} disabled={contactSending}
+                    style={{ flex: 2, background: 'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', border: 'none', color: '#fff', borderRadius: 8, padding: '9px 0', cursor: contactSending ? 'not-allowed' : 'pointer', fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: 13, opacity: contactSending ? .7 : 1 }}>
+                    {contactSending ? '⏳ Envoi...' : '✉️ Envoyer'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : !myProfile ? (
+          <div style={{ background: C.card, border: '1px solid '+C.border, borderRadius: 14, padding: 22, marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: C.cream, fontWeight: 700 }}>
+                {profile.type === 'venue' ? 'Réserver ce lieu' : `Contacter ${profile.name}`}
+              </div>
+              <div style={{ fontSize: 12, color: C.dim, marginTop: 2 }}>Créez un compte gratuit pour envoyer un message</div>
+            </div>
+            <a href='/dashboard' style={{ background: 'linear-gradient(135deg,'+C.orange+','+C.orangeLt+')', color: '#fff', borderRadius: 9, padding: '10px 20px', fontSize: 13, fontWeight: 700, textDecoration: 'none', fontFamily: "'Outfit', sans-serif", whiteSpace: 'nowrap' }}>
+              Rejoindre StageMap →
+            </a>
+          </div>
+        ) : null}
 
         {/* Footer CTA */}
         <div style={{ borderTop: '1px solid '+C.border, paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
