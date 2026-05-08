@@ -46,7 +46,7 @@ const loadUserProfiles = async (user) => {
     style.textContent = GF;
     document.head.appendChild(style);
 
-    // Listen to auth changes
+    // onAuthStateChange fires INITIAL_SESSION on load — no need for a separate getSession() call
     const sub = onAuthChange(async (event, session) => {
       if (session) {
         setSession(session);
@@ -55,19 +55,6 @@ const loadUserProfiles = async (user) => {
       } else {
         clearAuth();
         // Wipe persisted store so stale profile IDs don't survive account deletion
-        localStorage.removeItem('stagemap-store');
-      }
-    });
-
-    // Check existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        setSession(session);
-        setUser(session.user);
-        await loadUserProfiles(session.user);
-      } else {
-        // No session — clear any stale persisted state
-        clearAuth();
         localStorage.removeItem('stagemap-store');
       }
     });
