@@ -63,8 +63,10 @@ export default function OnboardPage() {
     type: 'artist', name: '', genre: 'Jazz / Soul',
     region: 'Montréal', country: 'Canada', avatar: '🎷',
     bio: '', fee: '', links: '', available: true,
+    artist_tier: '', venue_type: '',
   });
   const set = (k, v) => setP(prev => ({ ...prev, [k]: v }));
+  const setType = (t) => setP(prev => ({ ...prev, type: t, artist_tier: '', venue_type: '' }));
 
   // Vérifie si c'est un nouveau profil ou le premier
   const isAddingProfile = userProfiles && userProfiles.length > 0;
@@ -90,6 +92,8 @@ export default function OnboardPage() {
         links: p.links ? p.links.split(',').map(l => l.trim()).filter(Boolean) : [],
         lat: coords.lat + (Math.random() - 0.5) * 0.2,
         lng: coords.lng + (Math.random() - 0.5) * 0.2,
+        artist_tier: p.type === 'artist' ? (p.artist_tier || 'amateur') : null,
+        venue_type: p.type === 'venue' ? (p.venue_type || 'amateur') : null,
       };
 
       const saved = await createProfile(newProfile);
@@ -111,6 +115,71 @@ export default function OnboardPage() {
     setLoading(false);
   };
 
+  const tierStep = p.type === 'artist' ? [{
+    title: 'Votre niveau artiste',
+    valid: p.artist_tier !== '',
+    content: (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {[
+          { k: 'amateur', icon: '🎶', label: 'Amateur', sub: 'Compte gratuit', price: 'Gratuit', color: C.muted,
+            desc: 'Profil public simple · Répertoire complet · Carrousel événements',
+            note: 'Sans accès à l\'agenda, au chat ni aux invitations' },
+          { k: 'local_legends', icon: '🎵', label: 'Local Legends', sub: 'Semi-professionnel', price: '15$ / mois', color: C.orange,
+            desc: 'Agenda · Chat · Créer des événements · Envoyer des invitations aux lieux',
+            note: 'Événements dans le carrousel avec supplément de promotion' },
+          { k: 'all_stars', icon: '⭐', label: 'All Stars', sub: 'Professionnel', price: '29$ / mois', color: C.purple,
+            desc: 'Accès complet · Événements dans le carrousel automatiquement · Invitations prioritaires',
+            note: 'Votre profil sera activé comme Local Legends en attendant la vérification par l\'équipe StageMap' },
+        ].map(tier => {
+          const active = p.artist_tier === tier.k;
+          return (
+            <div key={tier.k} onClick={() => set('artist_tier', tier.k)}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: 16, background: active ? tier.color + '18' : C.tag, border: '2px solid ' + (active ? tier.color : C.border), borderRadius: 12, cursor: 'pointer', transition: 'all .2s' }}>
+              <span style={{ fontSize: 26, marginTop: 2 }}>{tier.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: active ? tier.color : C.text }}>
+                  {tier.label} <span style={{ fontSize: 11, fontWeight: 400, color: C.dim }}>— {tier.sub}</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>{tier.desc}</div>
+                <div style={{ fontSize: 10, color: C.dim, marginTop: 4, fontStyle: 'italic' }}>{tier.note}</div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: active ? tier.color : C.muted, flexShrink: 0 }}>{tier.price}</div>
+            </div>
+          );
+        })}
+      </div>
+    ),
+  }] : p.type === 'venue' ? [{
+    title: 'Type de lieu',
+    valid: p.venue_type !== '',
+    content: (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {[
+          { k: 'amateur', icon: '🏠', label: 'Lieu amateur / non-conventionnel', price: 'Abonnement bas prix', color: C.orange,
+            desc: 'Accès complet au répertoire et à l\'agenda · Invitations vers tout type d\'artiste',
+            note: 'Un avertissement s\'affichera avant d\'inviter des artistes professionnels (Local Legends / All Stars)' },
+          { k: 'professional', icon: '🏛️', label: 'Lieu professionnel', price: 'À définir', color: C.purple,
+            desc: 'Accès complet · Invitations sans restriction · Aucun avertissement affiché',
+            note: 'Pour les salles, festivals et producteurs établis' },
+        ].map(vt => {
+          const active = p.venue_type === vt.k;
+          return (
+            <div key={vt.k} onClick={() => set('venue_type', vt.k)}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: 18, background: active ? vt.color + '18' : C.tag, border: '2px solid ' + (active ? vt.color : C.border), borderRadius: 12, cursor: 'pointer', transition: 'all .2s' }}>
+              <span style={{ fontSize: 28, marginTop: 2 }}>{vt.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: active ? vt.color : C.text }}>{vt.label}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>{vt.desc}</div>
+                <div style={{ fontSize: 10, color: C.dim, marginTop: 4, fontStyle: 'italic' }}>{vt.note}</div>
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: active ? vt.color : C.muted, flexShrink: 0 }}>{vt.price}</div>
+            </div>
+          );
+        })}
+      </div>
+    ),
+  }] : [];
+
   const steps = [
     {
       title: t('ob.type_title'),
@@ -122,7 +191,7 @@ export default function OnboardPage() {
             { k: 'venue',  l: t('type.venue'),  i: '🏛️', d: t('ob.venue_desc') },
             { k: 'fan',    l: t('type.fan'),    i: '💛', d: t('ob.fan_desc') },
           ].map(r => (
-            <div key={r.k} onClick={() => set('type', r.k)}
+            <div key={r.k} onClick={() => setType(r.k)}
               style={{ background: p.type === r.k ? typeColors[r.k] + '22' : C.tag, border: '2px solid ' + (p.type === r.k ? typeColors[r.k] : C.border), borderRadius: 12, padding: 16, cursor: 'pointer', textAlign: 'center', transition: 'all .2s' }}>
               <div style={{ fontSize: 34, marginBottom: 8 }}>{r.i}</div>
               <div style={{ fontWeight: 700, color: p.type === r.k ? typeColors[r.k] : C.text, fontSize: 14, marginBottom: 4 }}>{r.l}</div>
@@ -132,6 +201,7 @@ export default function OnboardPage() {
         </div>
       ),
     },
+    ...tierStep,
     {
       title: t('me.artist_name'),
       valid: p.name.trim().length > 0,

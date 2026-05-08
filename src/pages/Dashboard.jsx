@@ -372,8 +372,10 @@ function EventModal({ ev, onClose }) {
 }
 
 /* ── Profile Modal ── */
-function ProfileModal({ a, myId, onClose, onChat, onInvite }) {
+function ProfileModal({ a, myId, myProfile, onClose, onChat, onInvite }) {
   const isMe = a.id === myId;
+  const canInvite = myProfile?.type === 'venue' ||
+    (myProfile?.type === 'artist' && (myProfile?.artist_tier === 'local_legends' || myProfile?.artist_tier === 'all_stars'));
   const t = useT();
   const tl = { artist: t('type.artist'), venue: t('type.venue'), fan: t('type.fan') };
   return (
@@ -406,7 +408,7 @@ function ProfileModal({ a, myId, onClose, onChat, onInvite }) {
         )}
         {!isMe&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           <Btn onClick={()=>{onChat(a);onClose();}}>💬 {t('modal.chat').replace('💬 ','')}</Btn>
-          <Btn v="secondary" onClick={()=>{onInvite(a);onClose();}}>{t('modal.invite')}</Btn>
+          {canInvite && <Btn v="secondary" onClick={()=>{onInvite(a);onClose();}}>{t('modal.invite')}</Btn>}
           {a.type==='artist'&&<Btn v="purple" onClick={()=>{ window.open('/artist/'+a.id,'_blank'); }}>🎵 Page Artiste</Btn>}
           <Btn v="ghost" onClick={()=>{ window.open('/profile/'+a.id,'_blank'); }}>{t('modal.public')}</Btn>
           <Btn v="ghost" onClick={onClose}>✕</Btn>
@@ -611,7 +613,13 @@ function InviteModal({ organizer, invitee, profiles, onClose, onSent }) {
   const [legalOk, setLegalOk] = useState(false);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [warningAccepted, setWarningAccepted] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const isOrganizerAmateurArtist = organizer?.type === 'artist' && (!organizer?.artist_tier || organizer?.artist_tier === 'amateur');
+  const isOrganizerAmateurVenue = organizer?.type === 'venue' && (!organizer?.venue_type || organizer?.venue_type === 'amateur');
+  const inviteePro = invitee?.type === 'artist' && (invitee?.artist_tier === 'local_legends' || invitee?.artist_tier === 'all_stars');
+  const needsWarning = isOrganizerAmateurVenue && inviteePro && !warningAccepted;
 
 const send = async () => {
     setLoading(true);
@@ -634,7 +642,29 @@ await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.
           <button onClick={onClose} style={{background:'none',border:'none',color:C.dim,cursor:'pointer',fontSize:16}}>✕</button>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:'16px 22px'}}>
-          {step===0&&<div style={{display:'flex',flexDirection:'column',gap:13}}>
+          {isOrganizerAmateurArtist && (
+            <div style={{textAlign:'center',padding:'30px 0'}}>
+              <div style={{fontSize:36,marginBottom:12}}>🚫</div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700,color:C.cream,marginBottom:8}}>Accès non disponible</div>
+              <div style={{color:C.muted,fontSize:13,lineHeight:1.7,marginBottom:20}}>Les comptes <strong style={{color:C.text}}>Amateur</strong> ne peuvent pas envoyer d'invitations.<br/>Passez à <strong style={{color:C.orange}}>Local Legends</strong> ou <strong style={{color:C.purple}}>All Stars</strong> pour débloquer cette fonctionnalité.</div>
+              <Btn v='secondary' onClick={onClose}>Fermer</Btn>
+            </div>
+          )}
+          {!isOrganizerAmateurArtist && needsWarning && (
+            <div style={{textAlign:'center',padding:'20px 0'}}>
+              <div style={{fontSize:36,marginBottom:12}}>⚠️</div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700,color:C.amber,marginBottom:10}}>Artiste professionnel</div>
+              <div style={{color:C.muted,fontSize:13,lineHeight:1.8,marginBottom:20,background:C.amber+'11',border:'1px solid '+C.amber+'33',borderRadius:10,padding:'14px 16px'}}>
+                <strong style={{color:C.text}}>{invitee.name}</strong> est un·e artiste {invitee.artist_tier === 'all_stars' ? <strong style={{color:C.purple}}>All Stars</strong> : <strong style={{color:C.orange}}>Local Legends</strong>}.<br/><br/>
+                Ces artistes exercent leur métier de façon professionnelle et sont <strong style={{color:C.text}}>généralement rémunérés</strong> pour leurs performances. En continuant, vous comprenez que cette invitation implique potentiellement une entente financière.
+              </div>
+              <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+                <Btn v='secondary' onClick={onClose}>Annuler</Btn>
+                <Btn onClick={()=>setWarningAccepted(true)}>Je comprends, continuer →</Btn>
+              </div>
+            </div>
+          )}
+          {!isOrganizerAmateurArtist && !needsWarning && step===0&&<div style={{display:'flex',flexDirection:'column',gap:13}}>
             {[{l:'Titre de la tournée',k:'tour_title',p:'Ex: Tournée Jazz Automne 2026'},{l:'Ville / Date',k:'city',p:'Montréal, Paris...'},{l:'Message personnel',k:'note',p:'Détails, attentes, conditions...'}].map(f=>(
               <div key={f.k}>
                 <div style={{fontSize:10,color:C.dim,letterSpacing:1,textTransform:'uppercase',marginBottom:5}}>{f.l}</div>
@@ -651,7 +681,7 @@ await sendMessage(organizer.user_id || organizer.id, invitee.user_id || invitee.
             </div>
             <Btn onClick={()=>setStep(1)}>Continuer → Accord légal</Btn>
           </div>}
-          {step===1&&<div>
+          {!isOrganizerAmateurArtist && !needsWarning && step===1&&<div>
             <div style={{background:C.tag,border:'1px solid '+C.border,borderRadius:8,padding:12,marginBottom:12}}>
               <div style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:C.orange,marginBottom:8,fontWeight:600}}>Contrat simplifié StageMap</div>
               {LEGAL_CLAUSES.map((c,i)=><div key={i} style={{display:'flex',gap:7,marginBottom:6,fontSize:11,color:C.muted,lineHeight:1.5}}><span style={{color:C.orange,fontWeight:700,flexShrink:0}}>{i+1}.</span><span>{c}</span></div>)}
@@ -1127,12 +1157,17 @@ export default function Dashboard() {
     return () => window.removeEventListener('resize', fn);
   }, []);
 
-  const isSubscribed = true; // TODO: restore checkSubscription(profile) before production
   const isFan = profile?.type === 'fan';
+  const isAmateurArtist = profile?.type === 'artist' && (!profile?.artist_tier || profile?.artist_tier === 'amateur');
+  const isPaidArtist = profile?.type === 'artist' && (profile?.artist_tier === 'local_legends' || profile?.artist_tier === 'all_stars');
+  const isAllStars = profile?.type === 'artist' && profile?.artist_tier === 'all_stars';
+  const isAmateurVenue = profile?.type === 'venue' && (!profile?.venue_type || profile?.venue_type === 'amateur');
+  const isSubscribed = isPaidArtist || profile?.type === 'venue' || profile?.subscribed;
+
   const lockedFor = (tabKey) => {
-    if (!['ai','cal','promo'].includes(tabKey)) return null;
+    if (!['ai','cal','promo','inbox'].includes(tabKey)) return null;
     if (isFan) return 'fan';
-    if (!isSubscribed) return 'pro';
+    if (isAmateurArtist) return 'amateur';
     return null;
   };
 
@@ -1361,7 +1396,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {profileModal&&<ProfileModal a={profileModal} myId={profile?.id} onClose={()=>setProfileModal(null)} onChat={openChat} onInvite={openInvite}/>}
+      {profileModal&&<ProfileModal a={profileModal} myId={profile?.id} myProfile={profile} onClose={()=>setProfileModal(null)} onChat={openChat} onInvite={openInvite}/>}
       {eventModal&&<EventModal ev={eventModal} onClose={()=>setEventModal(null)}/>}
       {chatPartner&&profile&&<ChatPanel myProfile={profile} partner={chatPartner} onClose={()=>setChatPartner(null)}/>}
       {inviteTarget&&profile&&(
